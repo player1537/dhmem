@@ -1,5 +1,10 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.10.2)
 project(Dhmem)
+
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.65.1) 
 
 find_library(REALTIME_EXTENSIONS rt)
 

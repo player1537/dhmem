@@ -1,17 +1,18 @@
 #include <cstdio>
 #include <memory>
 #include <dhmem/dhmem.h>
+#include <array>
 
 int main(int argc, char **argv) {
     std::printf("Hello from evaluate\n");
-    dhmem::DhmemAllocator<int> a("foobar");
+    dhmem::DhmemAllocator<void> v("foobar");
 
-    {
-        auto a1 = std::shared_ptr<int>(a.allocate(1), [&a](int *x) { a.deallocate(x, 1); });
-        *a1 = 123;
+    auto a1 = v.as<std::array<int, 1024>>().make_shared();
+    auto a1v = *a1.get();
 
-        std::printf("a1 = %d\n", *a1);
+    for (int i=0; i<1024; ++i) {
+        a1v[i] = i;
     }
 
-    a.close();
+    std::printf("a1v[100] = %d\n", a1v[100]);
 }

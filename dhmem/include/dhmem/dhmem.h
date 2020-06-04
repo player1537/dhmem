@@ -58,6 +58,7 @@ struct DhmemImpl {
     }
 
     void close() {
+        std::fprintf(stderr, "DhmemImpl->close()\n");
         if (closed_)
             throw std::runtime_error("DhmemImpl already closed");
 
@@ -76,7 +77,7 @@ private:
     }
 };
 
-struct DhmemDeleter {
+struct DhmemImplDeleter {
     void operator()(DhmemImpl *d) const {
         d->close();
         delete d;
@@ -91,7 +92,7 @@ struct DhmemAllocator
     std::shared_ptr<DhmemImpl> impl_;
 
     DhmemAllocator (const std::string &name)
-        : impl_(new DhmemImpl(name), DhmemDeleter())
+        : impl_(new DhmemImpl(name), DhmemImplDeleter())
     {
         std::fprintf(stderr, "DhmemAllocator(\"%s\")\n", name.c_str());
     }
@@ -110,14 +111,31 @@ struct DhmemAllocator
     }
 
     void deallocate(T* p, std::size_t n) noexcept { 
-        std::fprintf(stderr, "DhmemAllocator->deallocate(%p, %lu)\n", p, n);
+        std::fprintf(stderr, "DhmemAllocator->deallocate(%p, %lu * %lu)\n", p, n, sizeof(T));
         impl_->deallocate<T>(p, n);
     }
 
-    void close() {
-        std::fprintf(stderr, "DhmemAllocator->close()\n");
-        impl_ = nullptr;
+    template <class U>
+    DhmemAllocator<U> as() {
+        return DhmemAllocator<U>(*this);
     }
+
+    template <class... Args>
+    std::shared_ptr<T> make_shared(Args&&... args) {
+        DhmemSharedPtrDeleter deleter {this};
+        T *t = allocate(1);
+        new (t) T(args...);
+        return std::shared_ptr<T>(t, deleter);
+    }
+
+private:
+    struct DhmemSharedPtrDeleter {
+        DhmemAllocator<T>* allocator_;
+
+        void operator()(T *t) const {
+            allocator_->deallocate(t, 1);
+        }
+    };
 };
 
 template <class T, class U>
