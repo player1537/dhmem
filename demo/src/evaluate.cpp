@@ -2,43 +2,75 @@
 #include <memory>
 #include <dhmem/dhmem.h>
 #include <array>
+#include "common.h"
 
-struct e_in {
-    float A, B, C;
-    float x0;
-};
+void evaluate(dhmem::Dhmem &dhmem) {
+    auto &s_out_e_in_mutex = dhmem.simple<dhmem::mutex>("s_out_e_in_mutex");
+    auto &s_out_e_in_cond = dhmem.simple<dhmem::cond>("s_out_e_in_cond");
 
-struct e_out {
-    float y;
-    float yp;
-};
+    auto &e_out_s_in_mutex = dhmem.simple<dhmem::mutex>("e_out_s_in_mutex");
+    auto &e_out_s_in_cond = dhmem.simple<dhmem::cond>("e_out_s_in_cond");
+
+    auto &e_out_v_in_mutex = dhmem.simple<dhmem::mutex>("e_out_v_in_mutex");
+    auto &e_out_v_in_cond = dhmem.simple<dhmem::cond>("e_out_v_in_cond");
+
+    auto &e_out = dhmem.vector<e_out_data>("e_out");
+    auto &e_in = dhmem.vector<e_in_data>("s_out");
+
+    dhmem::scoped_lock lock(s_out_e_in_mutex);
+    for (int i=0; ; ++i) {
+        if (i == 0) {
+            std::printf("initial\n");
+            e_in.resize(1);
+            char *s;
+            e_in[0].a = (s = std::getenv("A")) ? std::atof(s) :  1.00;
+            e_in[0].b = (s = std::getenv("B")) ? std::atof(s) :  2.00;
+            e_in[0].c = (s = std::getenv("C")) ? std::atof(s) : -3.00;
+            e_in[0].x = (s = std::getenv("X")) ? std::atof(s) :  3.00;
+        } else {
+            std::printf("waiting\n");
+            s_out_e_in_cond.wait(lock);
+        }
+
+        {
+            std::printf("e_in.size() = %d\n", (int)e_in.size());
+
+            e_out.resize(e_in.size());
+            for (int j=0; j<e_in.size(); ++j) {
+                float a = e_in[j].a;
+                float b = e_in[j].b;
+                float c = e_in[j].c;
+                float x = e_in[j].x;
+
+                float y = a * x * x + b * x + c;
+                float yp = 2 * a * x + b;
+
+                e_out[j] = { a, b, c, x, y, yp };
+            }
+        }
+
+        {
+            std::printf("notifying cond\n");
+            dhmem::scoped_lock lock(e_out_s_in_mutex);
+            e_out_s_in_cond.notify_one();
+        }
+
+        {
+            dhmem::scoped_lock lock(e_out_v_in_mutex);
+            e_out_v_in_cond.notify_one();
+        }
+
+        if (e_out.size() == 0) {
+            std::printf("breaking\n");
+            break;
+        }
+    }
+}
 
 int main(int argc, char **argv) {
     std::printf("Hello from evaluate\n");
 
     dhmem::Dhmem dhmem("foobar");
 
-    auto &map = dhmem.map<int, dhmem::vector<int>>("mymap");
-    //dhmem::map<int, dhmem::vector<int>> &map = dhmem.container<dhmem::map<int, dhmem::vector<int>>>("mymap");
-
-    auto &vec = dhmem.container<dhmem::vector<int>>("myvec");
-    vec.resize(1024);
-    for (int i=0; i<1024; ++i) {
-        vec[i] = i;
-    }
-
-    auto &count = dhmem.simple<int>("mycount");
-    count = 1;
-
-    //map[count] = vec;
-    //auto pair = std::pair<const int, dhmem::vector<int>>(count, vec);
-    //auto &pair = dhmem.simple<map::template value_type>("mypair")(&&count, &&vec);
-
-    map.insert(std::make_pair(count, vec));
-
-    std::printf("vec[100] = %d; count = %d\n", vec[100], count);
-
-    std::getchar();
-
-    std::printf("vec[100] = %d; count = %d\n", vec[100], count);
+    evaluate(dhmem);
 }

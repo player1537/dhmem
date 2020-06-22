@@ -5,15 +5,29 @@
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/containers/vector.hpp>
 #include <boost/interprocess/containers/map.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
 
 
 namespace dhmem {
 
+using segment_manager = boost::interprocess::managed_shared_memory::segment_manager;
+
 template <typename T>
-using vector = typename boost::interprocess::vector<T, boost::interprocess::allocator<T, boost::interprocess::managed_shared_memory::segment_manager>>;
+using allocator = boost::interprocess::allocator<T, segment_manager>;
+
+template <typename T>
+using vector = typename boost::interprocess::vector<T, allocator<T>>;
 
 template <typename K, typename T>
-using map = typename boost::interprocess::map<K, T, std::less<K>, boost::interprocess::allocator<std::pair<const K, T>, boost::interprocess::managed_shared_memory::segment_manager>>;
+using map = typename boost::interprocess::map<K, T, std::less<K>, allocator<std::pair<const K, T>>>;
+
+using mutex = boost::interprocess::interprocess_mutex;
+
+using cond = boost::interprocess::interprocess_condition;
+
+using scoped_lock = boost::interprocess::scoped_lock<mutex>;
 
 struct Dhmem {
     Dhmem(const std::string &name)
@@ -63,7 +77,7 @@ private:
 
     boost::interprocess::managed_shared_memory segment_;
 
-    boost::interprocess::allocator<void, boost::interprocess::managed_shared_memory::segment_manager> allocator_;
+    dhmem::allocator<void> allocator_;
 };
 
 } // namespace dhmem {
