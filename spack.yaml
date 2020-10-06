@@ -1,0 +1,7 @@
+spack:
+  specs:
+  - pythia8
+  - diy@master ^mpich@3.3.2
+  - py-h5py ^hdf5@1.10.2 ^mpich@3.3.2 ^python@3.8.2
+  - py-scipy@1.3.3 ^python@3.8.2
+  - hepmc@2.06.10

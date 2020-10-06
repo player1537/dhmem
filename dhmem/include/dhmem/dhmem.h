@@ -8,6 +8,7 @@
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
+#include <boost/interprocess/smart_ptr/shared_ptr.hpp>
 
 
 namespace dhmem {
@@ -28,6 +29,9 @@ using mutex = boost::interprocess::interprocess_mutex;
 using cond = boost::interprocess::interprocess_condition;
 
 using scoped_lock = boost::interprocess::scoped_lock<mutex>;
+
+template <typename T>
+using shared_ptr = boost::interprocess::managed_shared_ptr<T, boost::interprocess::managed_shared_memory>;
 
 struct Dhmem {
     Dhmem(const std::string &name)
@@ -66,6 +70,11 @@ struct Dhmem {
     template <typename K, typename T, typename... Args>
     dhmem::map<K, T> &map(const std::string &name, Args... args) {
         return container<dhmem::map<K, T>>(name, &args...);
+    }
+
+    template <typename T>
+    dhmem::shared_ptr<T> &make_shared(T &&t) {
+        return boost::interprocess::make_managed_shared_ptr(&t, segment_);
     }
 
 private:

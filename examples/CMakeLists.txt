@@ -1,0 +1,3 @@
+set(ALLOW_DUPLICATE_CUSTOM_TARGETS ON)
+add_subdirectory(newtons_method)
+add_subdirectory(decaf_newtons_method)

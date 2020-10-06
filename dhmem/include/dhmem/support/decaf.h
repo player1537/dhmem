@@ -1,0 +1,409 @@
+#ifndef _DHMEM_SUPPORT_DECAF_H_
+#define _DHMEM_SUPPORT_DECAF_H_
+
+#include "../dhmem.h"
+#include <bredala/data_model/baseconstructdata.h>
+#include <bredala/data_model/basefield.h>
+
+namespace dhmem {
+namespace support {
+namespace decaf {
+
+template<typename T>
+class SharedConstructData : public BaseConstructData {
+public:
+
+    SharedConstructData(mapConstruct map = mapConstruct(), bool bCountable = true)
+        : BaseConstructData(map, bCountable){}
+
+    SharedConstructData(T* value, dhmem::Dhmem &dhmem, mapConstruct map = mapConstruct(), bool bCountable = true)
+        : value_(value), dhmem_(dhmem), BaseConstructData(map, bCountable){}
+
+    virtual ~SharedConstructData(){}
+
+    template<class Archive>
+    void serialize(Archive & ar, const unsigned int version)
+    {
+        boost::serialization::base_object<BaseConstructData>(*this);
+        ar & BOOST_SERIALIZATION_NVP(value_);
+    }
+
+    virtual bool isBlockSplitable(){ return false; }
+
+    virtual int getNbItems(){ return 1; }
+
+    virtual std::string getTypename(){ return boost::typeindex::type_id<T>().pretty_name(); }
+
+    T& getData(){ return value_; }
+
+    void setData(T* value){ value_ = value; }
+
+    virtual bool appendItem(std::shared_ptr<BaseConstructData> dest, unsigned int index, ConstructTypeMergePolicy policy = DECAF_MERGE_DEFAULT)
+    {
+	std::cout<<"AppendItem not implemented yet for simpleConstructData."<<std::endl;
+	return false;
+    }
+
+    virtual void preallocMultiple(int nbCopies , int nbItems, std::vector<std::shared_ptr<BaseConstructData> >& result)
+    {
+	for(unsigned int i = 0; i < nbCopies; i++)
+	{
+		result.push_back(std::make_shared<SharedConstructData>());
+	}
+    }
+
+    virtual std::vector< std::shared_ptr<BaseConstructData> > split(
+            const std::vector<int>& range,
+            std::vector< mapConstruct >& partial_map,
+            ConstructTypeSplitPolicy policy = DECAF_SPLIT_DEFAULT)
+    {
+        std::vector<std::shared_ptr<BaseConstructData> > result;
+        switch(policy)
+        {
+            case DECAF_SPLIT_DEFAULT :
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                    result.push_back(std::make_shared<SharedConstructData<T> >(value_, dhmem_, map_));
+                break;
+            }
+            case DECAF_SPLIT_KEEP_VALUE:
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                    result.push_back(std::make_shared<SharedConstructData<T> >(value_, dhmem_, map_));
+                break;
+            }
+            case DECAF_SPLIT_MINUS_NBITEM:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+            default:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+        }
+        return result;
+    }
+
+    virtual void split(
+            const std::vector<int>& range,
+            std::vector< mapConstruct >& partial_map,
+            std::vector<std::shared_ptr<BaseConstructData> >& fields,
+            ConstructTypeSplitPolicy policy = DECAF_SPLIT_DEFAULT)
+    {
+        assert(fields.size() == range.size());
+
+        switch(policy)
+        {
+            case DECAF_SPLIT_DEFAULT :
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                {
+                    std::shared_ptr<SharedConstructData<T> > ptr =
+                            std::dynamic_pointer_cast<SharedConstructData<T> >(fields[i]);
+
+                    ptr->value_ = value_;
+                    ptr->map_ = map_;
+                }
+                break;
+            }
+            case DECAF_SPLIT_KEEP_VALUE:
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                {
+                    std::shared_ptr<SharedConstructData<T> > ptr =
+                            std::dynamic_pointer_cast<SharedConstructData<T> >(fields[i]);
+
+                    ptr->value_ = value_;
+                    ptr->map_ = map_;
+                }
+                break;
+            }
+            case DECAF_SPLIT_MINUS_NBITEM:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+	    }
+            default:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+        }
+        return;
+    }
+
+    virtual std::vector<std::shared_ptr<BaseConstructData> > split(
+            const std::vector< std::vector<int> >& range,
+            std::vector< mapConstruct >& partial_map,
+            ConstructTypeSplitPolicy policy = DECAF_SPLIT_DEFAULT )
+    {
+        std::vector<std::shared_ptr<BaseConstructData> > result;
+        switch(policy)
+        {
+            case DECAF_SPLIT_DEFAULT :
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                    result.push_back(std::make_shared<SharedConstructData<T> >(value_));
+                break;
+            }
+            case DECAF_SPLIT_KEEP_VALUE:
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                    result.push_back(std::make_shared<SharedConstructData<T> >(value_));
+                break;
+            }
+            case DECAF_SPLIT_MINUS_NBITEM:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+            default:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+        }
+        return result;
+    }
+
+    //This function should never be called
+    virtual std::vector<std::shared_ptr<BaseConstructData> > split(
+            const std::vector< Block<3> >& range,
+            std::vector< mapConstruct >& partial_map,
+            ConstructTypeSplitPolicy policy = DECAF_SPLIT_DEFAULT)
+    {
+        fprintf(stderr,"Split by block not implemented with SharedField\n.");
+        std::vector<std::shared_ptr<BaseConstructData> > result;
+        return result;
+    }
+
+    virtual void split(
+	    const std::vector< std::vector<int> >& range,
+            std::vector< mapConstruct >& partial_map,
+            std::vector<std::shared_ptr<BaseConstructData> >& fields,
+            ConstructTypeSplitPolicy policy = DECAF_SPLIT_DEFAULT)
+    {
+        switch(policy)
+        {
+            case DECAF_SPLIT_DEFAULT :
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                {
+                    std::shared_ptr<SharedConstructData<T> > basefield_it =
+                            std::dynamic_pointer_cast<SharedConstructData<T> >(fields[i]);
+                    if(!basefield_it) fprintf(stderr, "Fail to cast in SharedConstructData during split\n");
+                    basefield_it->value_ = this->value_;
+                }
+                break;
+            }
+            case DECAF_SPLIT_KEEP_VALUE:
+            {
+                for(unsigned int i = 0; i < range.size(); i++)
+                {
+                    std::shared_ptr<SharedConstructData<T> > basefield_it =
+                            std::dynamic_pointer_cast<SharedConstructData<T> >(fields[i]);
+                    if(!basefield_it) fprintf(stderr, "Fail to cast in SharedConstructData during split\n");
+                    basefield_it->value_ = this->value_;
+                }
+                break;
+            }
+            case DECAF_SPLIT_MINUS_NBITEM:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+            default:
+            {
+                std::cout<<"Policy "<<policy<<" not supported for SharedConstructData"<<std::endl;
+                break;
+            }
+        }
+	return;
+    }
+
+    virtual bool merge( std::shared_ptr<BaseConstructData> other,
+                        mapConstruct partial_map,
+                        ConstructTypeMergePolicy policy = DECAF_MERGE_DEFAULT)
+    {
+        std::shared_ptr<SharedConstructData<T> > other_ = std::dynamic_pointer_cast<SharedConstructData<T> >(other);
+        if(!other_)
+        {
+            std::cout<<"ERROR : trying to merge two objects with different types"<<std::endl;
+            return false;
+        }
+
+        switch(policy)
+        {
+            case DECAF_MERGE_DEFAULT: //We just keep the first value
+            {
+
+                return true;
+                break;
+            }
+            case DECAF_MERGE_FIRST_VALUE: //We don't have to do anything here
+            {
+                return true;
+                break;
+            }
+            case DECAF_MERGE_ADD_VALUE:
+            {
+                std::cout<<"ERROR : policy "<<policy<<" not available for shared data."<<std::endl;
+                return false;
+                break;
+            }
+            default:
+            {
+                std::cout<<"ERROR : policy "<<policy<<" not available for shared data."<<std::endl;
+                return false;
+                break;
+            }
+
+        }
+    }
+
+    virtual bool merge(std::vector<std::shared_ptr<BaseConstructData> >& others,
+                       mapConstruct partial_map,
+                       ConstructTypeMergePolicy policy = DECAF_MERGE_DEFAULT)
+    {
+        for(unsigned int i = 0; i < others.size(); i++)
+        {
+            std::shared_ptr<SharedConstructData<T> > other_ = std::dynamic_pointer_cast<SharedConstructData<T> >(others[i]);
+            switch(policy)
+            {
+                case DECAF_MERGE_DEFAULT: //We just keep the first value
+                {
+                    break;
+                }
+                case DECAF_MERGE_FIRST_VALUE: //We don't have to do anything here
+                {
+
+                    break;
+                }
+                case DECAF_MERGE_ADD_VALUE:
+                {
+                    std::cout<<"ERROR : policy "<<policy<<" not available for simple data."<<std::endl;
+                    return false;
+                    break;
+                }
+                default:
+                {
+                    std::cout<<"ERROR : policy "<<policy<<" not available for simple data."<<std::endl;
+                    return false;
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
+    virtual bool canMerge(std::shared_ptr<BaseConstructData> other)
+    {
+        std::shared_ptr<SharedConstructData<T> > other_ = std::dynamic_pointer_cast<SharedConstructData<T> >(other);
+        if(!other_)
+        {
+            std::cout<<"ERROR : trying to merge two objects with different types"<<std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    virtual void softClean()
+    {
+	return; //Nothing to do here
+    }
+
+protected:
+    T *value_;
+    dhmem::Dhmem &dhmem;
+};
+
+
+//! Field with a simple data type.
+template <typename T>
+class SharedField : public BaseField {
+
+public:
+    SharedField(std::shared_ptr<BaseConstructData> ptr)
+    {
+        ptr_ = std::dynamic_pointer_cast<SharedConstructData<T> >(ptr);
+        if(!ptr_)
+            std::cerr<<"ERROR : Unable to cast pointer to SharedConstructData<T> when using a SharedField."<<std::endl;
+    }
+
+   SharedField(bool init = false,
+               mapConstruct map = mapConstruct(),
+               bool bCountable = true)
+   {
+        if(init)
+            ptr_ = std::make_shared<SharedConstructData<T> >(map, bCountable);
+   }
+
+   /// @param value:       		the data point
+   /// @param map:			a container, map of fields with the field name as key and with additional information per field
+   /// @param bCountable:   		indicates whether this data type is countable or not
+
+   SharedField(T* value, dhmem::Dhmem &dhmem, mapConstruct map = mapConstruct(),
+               bool bCountable = true)
+   {
+       ptr_ = std::make_shared<SharedConstructData<T> >(value, dhmem, map, bCountable);
+   }
+
+   virtual ~SharedField(){}
+
+   virtual BaseConstructData* operator -> () const
+   {
+       return ptr_.get();
+   }
+
+   virtual std::shared_ptr<BaseConstructData> getBasePtr()
+   {
+       return ptr_;
+   }
+
+   std::shared_ptr<SharedConstructData<T> > getPtr()
+   {
+       return ptr_;
+   }
+
+   bool empty()
+   {
+       return ptr_.use_count() == 0;
+   }
+
+   T& getData()
+   {
+       return *ptr_->getData();
+   }
+
+   virtual int getNbItems()
+   {
+       return ptr_->getNbItems();
+   }
+
+   virtual operator bool() const {
+       return ptr_ ? true : false;
+   }
+
+
+private:
+    std::shared_ptr<SharedConstructData<T> > ptr_;
+};
+
+
+} /* namespace decaf */
+} /* namespace support */
+} /* namespace dhmem */
+
+namespace decaf {
+
+template <typename T>
+using SharedConstructData = dhmem::support::decaf::template SharedConstructData<T>;
+
+template <typename T>
+using SharedField = dhmem::support::decaf::template SharedField<T>;
+
+} /* namespace decaf */
+
+#endif /* _DHMEM_SUPPORT_DECAF_H_ */

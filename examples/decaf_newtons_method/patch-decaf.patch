@@ -1,0 +1,21 @@
+diff -Naur a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2020-08-14 12:34:41.629614395 -0500
++++ b/CMakeLists.txt	2020-08-14 12:36:19.257772769 -0500
+@@ -9,6 +9,7 @@
+ option                      (build_manala       "Build Manala libraries and examples"           ON)
+ option                      (build_decaf        "Build the Decaf workflow system"               ON)
+ option                      (build_tests        "Build the tests examples"                      OFF)
++option                      (build_examples     "Build the examples"                            ON)
+ set                         (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+ 
+ set                         (CMAKE_POSITION_INDEPENDENT_CODE ON)
+@@ -140,7 +141,9 @@
+ 
+ # subdirectories
+ add_subdirectory            (src)
++if                          (build_examples)
+ add_subdirectory            (examples)
++endif                       ()
+ add_subdirectory            (python)
+ 
+ if                          (build_tests)
