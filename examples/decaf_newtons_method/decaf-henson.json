@@ -1,0 +1,79 @@
+{
+    "workflow": {
+        "filter_level": "NONE",
+        "nodes": [
+            {
+                "start_proc": 0,
+                "nprocs": 1,
+                "cmdline": "../../stage/examples/decaf_newtons_method/evaluate",
+                "func": "evaluate",
+                "inports": [
+                    "e_in"
+                ],
+                "outports": [
+                    "e_out"
+                ]
+            },
+            {
+                "start_proc": 0,
+                "nprocs": 1,
+                "cmdline": "../../stage/examples/decaf_newtons_method/steer",
+                "func": "steer",
+                "inports": [
+                    "s_in"
+                ],
+                "outports": [
+                    "s_out"
+                ]
+            },
+            {
+                "start_proc": 1,
+                "nprocs": 1,
+                "cmdline": "../../stage/examples/decaf_newtons_method/visualize",
+                "func": "visualize",
+                "inports": [
+                    "v_in"
+                ],
+                "outports": []
+            }
+        ],
+        "edges": [
+            {
+                "start_proc": 0,
+                "nprocs": 0,
+                "source": 0,
+                "target": 1,
+                "prod_dflow_redist": "count",
+                "name": "evaluate_steer",
+                "sourcePort": "e_out",
+                "targetPort": "s_in",
+                "tokens": 0,
+                "transport": "mpi"
+            },
+            {
+                "start_proc": 0,
+                "nprocs": 0,
+                "source": 0,
+                "target": 2,
+                "prod_dflow_redist": "count",
+                "name": "evaluate_visualize",
+                "sourcePort": "e_out",
+                "targetPort": "v_in",
+                "tokens": 0,
+                "transport": "mpi"
+            },
+            {
+                "start_proc": 0,
+                "nprocs": 0,
+                "source": 1,
+                "target": 0,
+                "prod_dflow_redist": "count",
+                "name": "steer_evaluate",
+                "sourcePort": "s_out",
+                "targetPort": "e_in",
+                "tokens": 1,
+                "transport": "mpi"
+            }
+        ]
+    }
+}

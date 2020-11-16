@@ -60,7 +60,7 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
         y = A * x * x + B * x + C;
         yp = 2 * A * x + B;
 
-        SimpleFieldf x0field(x0);
+        SharedField<float> x0field(x0);
         SimpleFieldf Afield(A);
         SimpleFieldf Bfield(B);
         SimpleFieldf Cfield(C);
@@ -69,7 +69,7 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
         SimpleFieldf ypfield(yp);
 
         pConstructData out_msg;
-        out_msg->appendData("x0", x0field, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
+        //out_msg->appendData("x0", x0field, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("A", Afield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("B", Bfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("C", Cfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);

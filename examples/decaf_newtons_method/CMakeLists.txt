@@ -18,21 +18,21 @@ endif("${isSystemDir}" STREQUAL "-1")
 
 set(EP_HENSON Henson)
 ExternalProject_Add(
-	${EP_HENSON}
+    ${EP_HENSON}
 
-	PREFIX ${EP_HENSON}
+    PREFIX ${EP_HENSON}
 
-	GIT_REPOSITORY https://github.com/henson-insitu/henson.git
-	GIT_TAG e6584dd2275b1ab208a5dd759148513f741e8bef
-	GIT_SHALLOW ON
+    GIT_REPOSITORY https://github.com/henson-insitu/henson.git
+    GIT_TAG e6584dd2275b1ab208a5dd759148513f741e8bef
 
-	BUILD_ALWAYS OFF
-	INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/${EP_HENSON}
+    BUILD_ALWAYS OFF
+    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/${EP_HENSON}
 
     UPDATE_DISCONNECTED TRUE
+    UPDATE_COMMAND ""
 
-	CMAKE_CACHE_ARGS
-		-DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+    CMAKE_CACHE_ARGS
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
 )
 ExternalProject_Get_Property(${EP_HENSON} INSTALL_DIR)
 set(Henson_INSTALL_DIR ${INSTALL_DIR})
@@ -43,21 +43,21 @@ set(EP_DECAF "Decaf")
 ExternalProject_Add(
     ${EP_DECAF}
 
-	PREFIX ${EP_DECAF}
-	GIT_REPOSITORY https://bitbucket.org/tpeterka1/decaf.git
-	GIT_TAG afadfce969de3b7b1562828e611875a21c9e5381  # origin/decaf-henson
-	GIT_SHALLOW ON
+    PREFIX ${EP_DECAF}
+    GIT_REPOSITORY https://bitbucket.org/tpeterka1/decaf.git
+    GIT_TAG afadfce969de3b7b1562828e611875a21c9e5381  # origin/decaf-henson
 
-	BUILD_ALWAYS OFF
-	INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/${EP_DECAF}
+    BUILD_ALWAYS OFF
+    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/${EP_DECAF}
 
     UPDATE_DISCONNECTED TRUE
+    UPDATE_COMMAND ""
     PATCH_COMMAND cd <SOURCE_DIR> && patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patch-decaf.patch
 
-	CMAKE_CACHE_ARGS
-		-DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-		-DHENSON_INCLUDE_DIR:PATH=${Henson_INSTALL_DIR}
-		-DHENSON_LIBRARY:PATH=${Henson_INSTALL_DIR}/lib/libhenson.a
+    CMAKE_CACHE_ARGS
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DHENSON_INCLUDE_DIR:PATH=${Henson_INSTALL_DIR}
+        -DHENSON_LIBRARY:PATH=${Henson_INSTALL_DIR}/lib/libhenson.a
         -Dbuild_examples:BOOL=OFF
 )
 ExternalProject_Add_stepDependencies(${EP_DECAF}
