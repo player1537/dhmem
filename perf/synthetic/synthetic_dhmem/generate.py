@@ -5,6 +5,7 @@
 """
 
 from dataclasses import dataclass, field
+from itertools import product
 from textwrap import dedent
 from typing import List
 
@@ -13,27 +14,45 @@ from jinja2 import Template
 
 @dataclass
 class Port:
-    srcname: str
-    tgtname: str
-    default_size: int = field(default=1024)  # size of int array
+    producer: 'Task'
+    consumer: 'Task'
+    communication: str
+    default_size: int = field(default=None)  # size of int array
+
+    @property
+    def dhmem(self) -> bool:
+        return self.communication == 'dhmem'
+
+    @property
+    def mpi(self) -> bool:
+        return self.communication == 'mpi'
+
+    @property
+    def prodname(self) -> str:
+        return self.producer.name
+
+    @property
+    def consname(self) -> str:
+        return self.consumer.name
 
     def genname(self, suffix) -> str:
-        return f'{self.srcname}_out_{self.tgtname}_in_{suffix}'
+        return f'{self.prodname}_out_{self.consname}_in_{suffix}'
 
     g = genname
 
 
 @dataclass
 class Task:
+    number: int
     name: str
     ports: List[Port]
-    default_time: int = field(default=1000 * 1000)  # microseconds
+    default_period: int = field(default=None)  # microseconds
 
     @property
     def inports(self) -> List[Port]:
         inports = []
         for port in self.ports:
-            if port.tgtname == self.name:
+            if port.consname == self.name:
                 inports.append(port)
         return inports
 
@@ -41,7 +60,7 @@ class Task:
     def outports(self) -> List[Port]:
         outports = []
         for port in self.ports:
-            if port.srcname == self.name:
+            if port.prodname == self.name:
                 outports.append(port)
         return outports
 
@@ -55,36 +74,67 @@ class Task:
 class Context:
     tasks: List[Task]
 
+    @property
+    def uses_mpi(self) -> bool:
+        for task in self.tasks:
+            for port in task.ports:
+                if port.mpi:
+                    return True
+        return False
+
+    @property
+    def uses_dhmem(self) -> bool:
+        for task in self.tasks:
+            for port in task.ports:
+                if port.dhmem:
+                    return True
+        return False
+        
+
 
 template = Template(dedent(r"""
+    #include <array>
     #include <cstdio>
     #include <memory>
-    #include <array>
+    #include <vector>
+
     #include <unistd.h>
     #include <sys/wait.h>
 
+    #include <mpi.h>
+
     #include <dhmem/dhmem.h>
 
-    struct data {
-        data(dhmem::allocator<void> &alloc)
+    struct dhmem_data {
+        dhmem_data(dhmem::allocator<void> &alloc)
             : vec(alloc)
             {}
         dhmem::vector<int> vec;
     };
 
+    struct mpi_data {
+        mpi_data()
+            : vec()
+            {}
+        std::vector<int> vec;
+    };
+
     {% for task in tasks %}
     void {{ task.g('function') }}(dhmem::Dhmem &dhmem) {
+        {# helper variable for environment variables #}
         {% if task.outports %}
         char *s;
         {% endif %}
 
+        {# task period #}
         {% if task.outports %}
         useconds_t exp_time =
             (s = getenv("{{ task.g('time')|upper }}"))
                 ? (useconds_t)atol(s)
-                : {{ task.default_time }};
+                : {{ task.default_period }};
         {% endif %}
 
+        {# task data size #}
         {% for port in task.outports %}
         size_t {{ port.g('size') }} = 
             (s = getenv("{{ port.g('size')|upper }}"))
@@ -92,19 +142,35 @@ template = Template(dedent(r"""
                 : {{ port.default_size }};
         {% endfor %}
 
+        {# dhmem synchronization primitives #}
         {% for port in task.ports %}
+        {% if port.dhmem %}
         auto &{{ port.g('mutex') }} = dhmem.simple<dhmem::mutex>("{{ port.g('mutex') }}");
         auto &{{ port.g('cond') }} = dhmem.simple<dhmem::cond>("{{ port.g('cond') }}");
         auto &{{ port.g('ready_mutex') }} = dhmem.simple<dhmem::mutex>("{{ port.g('ready_mutex') }}");
         auto &{{ port.g('ready_cond') }} = dhmem.simple<dhmem::cond>("{{ port.g('ready_cond') }}");
+        {% endif %}
         {% endfor %}
 
+        {# dhmem data structures #}
         {% for port in task.ports %}
-        auto &{{ port.g('data') }} = dhmem.container<data>("{{ port.g('data') }}");
+        {% if port.dhmem %}
+        auto &{{ port.g('data') }} = dhmem.container<dhmem_data>("{{ port.g('data') }}");
+        {% endif %}
         {% endfor %}
 
+        {# mpi data structures #}
+        {% for port in task.ports %}
+        {% if port.mpi %}
+        auto {{ port.g('data') }} = mpi_data();
+        {% endif %}
+        {% endfor %}
+
+        {# dhmem locks #}
         {% for port in task.inports %}
+        {% if port.dhmem %}
         dhmem::scoped_lock {{ port.g('lock') }}({{ port.g('mutex') }});
+        {% endif %}
         {% endfor %}
 
         for (int i=0;; ++i) {
@@ -121,10 +187,25 @@ template = Template(dedent(r"""
             }
             {% endif %}
 
+            // receive
             {
                 {% for port in task.inports %}
+                {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('cond') }}: wait\n");
                 {{ port.g('cond') }}.wait({{ port.g('lock') }});
+                {% endif %}
+                {% endfor %}
+
+                {# mpi recieve data #}
+                {% for port in task.inports %}
+                {% if port.mpi %}
+                {
+                    int vecsize;
+                    MPI_Recv(&vecsize, 1, MPI_INT, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    {{ port.g('data') }}.vec.resize(vecsize);
+                    MPI_Recv({{ port.g('data') }}.vec.data(), vecsize, MPI_INT, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+                {% endif %}
                 {% endfor %}
 
                 {% for port in task.inports %}
@@ -132,48 +213,72 @@ template = Template(dedent(r"""
                 for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
                     {{ port.g('sum') }} += {{ port.g('data') }}.vec[j];
                 }
-                std::fprintf(stderr, "{{ task.name }}: {{ task.name }}: first = %d, {{ port.g('sum') }} = %d\n", {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
+                std::fprintf(stderr, "{{ task.name }}: first = %d, {{ port.g('sum') }} = %d\n", {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
                 {% endfor %}
 
                 {% for port in task.inports %}
+                {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_mutex') }}: lock\n");
                 dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
+                {% endif %}
                 {% endfor %}
 
                 {% for port in task.inports %}
+                {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_cond') }}: notify\n");
                 {{ port.g('ready_cond') }}.notify_one();
+                {% endif %}
                 {% endfor %}
             }
 
+            // send
             {
                 {% for port in task.outports %}
+                {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_mutex') }}: lock\n");
                 dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
+                {% endif %}
                 {% endfor %}
 
                 {% for port in task.outports %}
                 for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
                     {{ port.g('data') }}.vec[j]
-                        = 100 * 100 * 100 * ("{{ port.srcname }}"[0] - 'a' + 1)
-                        + 100 * 100 *       ("{{ port.tgtname }}"[0] - 'a' + 1)
+                        = 100 * 100 * 100 * ("{{ port.prodname }}"[0] - 'a' + 1)
+                        + 100 * 100 *       ("{{ port.consname }}"[0] - 'a' + 1)
                         + 100 * i
                         + j;
                 }
                 {% endfor %}
 
+                {# dhmem notify that data is ready #}
                 {% for port in task.outports %}
+                {% if port.dhmem %}
                 {
                     //std::fprintf(stderr, "{{ task.name }}: {{ port.g('mutex') }}: lock\n");
                     dhmem::scoped_lock lock({{ port.g('mutex') }});
                     //std::fprintf(stderr, "{{ task.name }}: {{ port.g('cond') }}: notify\n");
                     {{ port.g('cond') }}.notify_one();
                 }
+                {% endif %}
+                {% endfor %}
+
+                {# mpi send data #}
+                {% for port in task.outports %}
+                {% if port.mpi %}
+                {
+                    int vecsize;
+                    vecsize = {{ port.g('data') }}.vec.size();
+                    MPI_Send(&vecsize, 1, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                    MPI_Send({{ port.g('data') }}.vec.data(), vecsize, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                }
+                {% endif %}
                 {% endfor %}
 
                 {% for port in task.outports %}
+                {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_cond') }}: wait\n");
                 {{ port.g('ready_cond') }}.wait({{ port.g('ready_lock') }});
+                {% endif %}
                 {% endfor %}
             }
 
@@ -198,65 +303,26 @@ template = Template(dedent(r"""
     {% endfor %}
 
     void workflow(void) {
-        std::fprintf(stderr, "workflow: start\n");
-
         dhmem::Dhmem dhmem("foobar");
-        std::fprintf(stderr, "workflow: created dhmem object\n");
 
-        auto &barrier_mutex = dhmem.simple<dhmem::mutex>("barrier_mutex");
-        auto &barrier_cond = dhmem.simple<dhmem::cond>("barrier_cond");
-        auto &barrier_count = dhmem.simple<int>("barrier_count");
-        std::fprintf(stderr, "workflow: created sync primitives\n");
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-        dhmem::scoped_lock barrier_lock(barrier_mutex);
-        barrier_count = 0;
-        std::fprintf(stderr, "workflow: created lock\n");
-
+        if (0) {
         {% for task in tasks %}
-        if (fork() == 0) {
-            {
-                std::fprintf(stderr, "{{ task.name }}: forked\n");
-                dhmem::scoped_lock barrier_lock(barrier_mutex);
-                std::fprintf(stderr, "{{ task.name }}: acquired lock\n");
-                ++barrier_count;
-                barrier_cond.notify_all();
-                
-                for (;;) {
-                    barrier_cond.wait(barrier_lock);
-                    std::fprintf(stderr, "{{ task.name }}: waited on condition\n");
-                    if (barrier_count == {{ loop.length }}) break;
-                }
-            }
-            std::fprintf(stderr, "{{ task.name }}: start\n");
+        } else if (rank == {{ task.number }}) {
             {{ task.g('function') }}(dhmem);
-            std::fprintf(stderr, "{{ task.name }}: finished\n");
-            std::exit(0);
-        }
         {% endfor %}
-
-        std::fprintf(stderr, "workflow: forked children\n");
-        barrier_cond.notify_all();
-        std::fprintf(stderr, "workflow: notified all\n");
-
-        for (;;) {
-            std::fprintf(stderr, "workflow: waiting on cond\n");
-            barrier_cond.wait(barrier_lock);
-            std::fprintf(stderr, "workflow: checking count: %d/%d\n", barrier_count, {{ tasks|length }});
-            if (barrier_count == {{ tasks|length }}) break;
+        } else {
+            std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
         }
-        
-        barrier_cond.notify_all();
-        barrier_lock.unlock();
-
-        {% for task in tasks %}
-        std::fprintf(stderr, "workflow: waiting on {{ loop.index }}/{{ loop.length }}\n");
-        wait(NULL);
-        {% endfor %}
-
-        std::fprintf(stderr, "workflow: finished\n");
     }
 
     int main(int argc, char **argv) {
+        {% if context.uses_mpi %}
+        MPI_Init(&argc, &argv);
+        {% endif %}
+
         (void)argc;
         (void)argv;
 
@@ -267,43 +333,82 @@ template = Template(dedent(r"""
 """))
 
 
-def main(ports):
+def main(definitions):
     task_names = []
-    for port in ports:
-        if port.srcname not in task_names:
-            task_names.append(port.srcname)
-
-        if port.tgtname not in task_names:
-            task_names.append(port.tgtname)
+    for prodnames, consnames, options in definitions:
+        for task_name in prodnames + consnames:
+            if task_name not in task_names:
+                task_names.append(task_name)
 
     task_names.sort()
 
     tasks = []
-    for task_name in task_names:
+    for i, task_name in enumerate(task_names):
         task = Task(
+            number=i,
             name=task_name,
-            ports=[port for port in ports if port.srcname == task_name or port.tgtname == task_name],
+            ports=[],
         )
         tasks.append(task)
+
+    task_lookup = { v.name: v for v in tasks }
+    
+    ports = []
+    for prodnames, consnames, options in definitions:
+        default_period = int(options.get('period', 1000 * 1000))  # microseconds
+        default_size = int(options.get('size', 10 * 1024))  # number of ints
+        communication = options.get('comm', 'dhmem')  # dhmem or mpi
+        
+
+        for prodname, consname in product(prodnames, consnames):
+            producer = task_lookup[prodname]
+            consumer = task_lookup[consname]
+
+            port = Port(
+                producer=producer,
+                consumer=consumer,
+                default_size=default_size,
+                communication=communication,
+            )
+
+            producer.ports.append(port)
+            consumer.ports.append(port)
+
+            if producer.default_period is None:
+                producer.default_period = default_period
+            elif producer.default_period != default_period:
+                raise ValueError(f'Producer {producer.name} already has a period')
+
+            if consumer.default_period is None:
+                consumer.default_period = default_period
+            elif consumer.default_period != default_period:
+                raise ValueError(f'Consumer {consumer.name} already has a period')
 
     context = Context(
         tasks=tasks,
     )
 
-    print(template.render(context.__dict__))
+    #print(context.tasks[0].ports[0].mpi, file=__import__('sys').stderr)
+    print(template.render(tasks=context.tasks, context=context))
 
 
 def cli():
-    def port(s):
-        srcname, tgtname, default_size = s.split('/')
-        default_size = int(default_size)
-        return Port(srcname, tgtname, default_size)
+    def definition(s):
+        producers, consumers, options = s.split('/', 3)
+        producers = producers.split(',')
+        consumers = consumers.split(',')
+        options = [ x.split('=', 1) for x in options.split(',') ]
+        options = { k: v for option in options for k, v in [option] }
+        return producers, consumers, options
+
 
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('ports', type=port, nargs='+')
+    parser.add_argument('definitions', type=definition, nargs='+')
     args = vars(parser.parse_args())
+
+    print(args['definitions'], file=__import__('sys').stderr)
 
     main(**args)
 
