@@ -9,7 +9,7 @@ from itertools import product
 from textwrap import dedent
 from typing import List
 
-from jinja2 import Template
+from jinja2 import Environment, StrictUndefined
 
 
 @dataclass
@@ -73,6 +73,7 @@ class Task:
 @dataclass
 class Context:
     tasks: List[Task]
+    default_maxiter: int = field(default=0)
 
     @property
     def uses_mpi(self) -> bool:
@@ -90,9 +91,21 @@ class Context:
                     return True
         return False
         
+    @property
+    def all_mpi(self) -> bool:
+        return all(port.mpi for task in self.tasks for port in task.ports)
+        
+    @property
+    def all_dhmem(self) -> bool:
+        return all(port.dhmem for task in self.tasks for port in task.ports)
+
+    def genname(self, s: str) -> str:
+        return f'dhmem_{s}'
+
+    g = genname
 
 
-template = Template(dedent(r"""
+template_source = dedent(r"""
     #include <array>
     #include <cstdio>
     #include <memory>
@@ -122,9 +135,7 @@ template = Template(dedent(r"""
     {% for task in tasks %}
     void {{ task.g('function') }}(dhmem::Dhmem &dhmem) {
         {# helper variable for environment variables #}
-        {% if task.outports %}
         char *s;
-        {% endif %}
 
         {# task period #}
         {% if task.outports %}
@@ -133,6 +144,12 @@ template = Template(dedent(r"""
                 ? (useconds_t)atol(s)
                 : {{ task.default_period }};
         {% endif %}
+
+        {# task iterations #}
+        size_t maxiter =
+            (s = getenv("{{ context.g('maxiter')|upper }}"))
+                ? (size_t)atol(s)
+                : {{ context.default_maxiter }};
 
         {# task data size #}
         {% for port in task.outports %}
@@ -155,6 +172,7 @@ template = Template(dedent(r"""
         {# dhmem data structures #}
         {% for port in task.ports %}
         {% if port.dhmem %}
+        std::fprintf(stderr, "{{ task.name }}: dhmem {{ port.g('data') }}\n");
         auto &{{ port.g('data') }} = dhmem.container<dhmem_data>("{{ port.g('data') }}");
         {% endif %}
         {% endfor %}
@@ -162,6 +180,7 @@ template = Template(dedent(r"""
         {# mpi data structures #}
         {% for port in task.ports %}
         {% if port.mpi %}
+        std::fprintf(stderr, "{{ task.name }}: mpi {{ port.g('data') }}\n");
         auto {{ port.g('data') }} = mpi_data();
         {% endif %}
         {% endfor %}
@@ -169,11 +188,12 @@ template = Template(dedent(r"""
         {# dhmem locks #}
         {% for port in task.inports %}
         {% if port.dhmem %}
+        std::fprintf(stderr, "{{ task.name }}: {{ port.g('lock') }}\n");
         dhmem::scoped_lock {{ port.g('lock') }}({{ port.g('mutex') }});
         {% endif %}
         {% endfor %}
 
-        for (int i=0;; ++i) {
+        for (int i=0; (maxiter ? i<maxiter : 1); ++i) {
             {% if task.outports %}
             struct timespec start;
             clock_gettime(CLOCK_MONOTONIC, &start);
@@ -213,7 +233,7 @@ template = Template(dedent(r"""
                 for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
                     {{ port.g('sum') }} += {{ port.g('data') }}.vec[j];
                 }
-                std::fprintf(stderr, "{{ task.name }}: first = %d, {{ port.g('sum') }} = %d\n", {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
+                std::fprintf(stderr, "{{ task.name }}: i = %d, first = %d, {{ port.g('sum') }} = %d\n", i, {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
                 {% endfor %}
 
                 {% for port in task.inports %}
@@ -302,6 +322,7 @@ template = Template(dedent(r"""
     }
     {% endfor %}
 
+    {% if context.all_mpi %}
     void workflow(void) {
         dhmem::Dhmem dhmem("foobar");
 
@@ -311,17 +332,78 @@ template = Template(dedent(r"""
         if (0) {
         {% for task in tasks %}
         } else if (rank == {{ task.number }}) {
+            std::fprintf(stderr, "{{ task.name }}: starting\n");
             {{ task.g('function') }}(dhmem);
         {% endfor %}
         } else {
             std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
         }
     }
+    {% endif %}
+
+    {% if context.all_dhmem %}
+    void workflow(void) {
+        std::fprintf(stderr, "workflow: start\n");
+
+        dhmem::Dhmem dhmem(dhmem::create_only, "foobar");
+        std::fprintf(stderr, "workflow: created dhmem object\n");
+
+        auto &barrier_mutex = dhmem.simple<dhmem::mutex>("barrier_mutex");
+        auto &barrier_cond = dhmem.simple<dhmem::cond>("barrier_cond");
+        auto &barrier_count = dhmem.simple<int>("barrier_count");
+        std::fprintf(stderr, "workflow: created sync primitives\n");
+
+        dhmem::scoped_lock barrier_lock(barrier_mutex);
+        barrier_count = 0;
+        std::fprintf(stderr, "workflow: created lock\n");
+
+        {% for task in tasks %}
+        if (fork() == 0) {
+            {
+                std::fprintf(stderr, "{{ task.name }}: forked\n");
+                dhmem::scoped_lock barrier_lock(barrier_mutex);
+                std::fprintf(stderr, "{{ task.name }}: acquired lock\n");
+                ++barrier_count;
+                barrier_cond.notify_all();
+
+                for (;;) {
+                    barrier_cond.wait(barrier_lock);
+                    std::fprintf(stderr, "{{ task.name }}: waited on condition\n");
+                    if (barrier_count == {{ loop.length }}) break;
+                }
+            }
+            std::fprintf(stderr, "{{ task.name }}: start\n");
+            {{ task.g('function') }}(dhmem);
+            std::fprintf(stderr, "{{ task.name }}: finished\n");
+            std::exit(0);
+        }
+        {% endfor %}
+
+        std::fprintf(stderr, "workflow: forked children\n");
+        barrier_cond.notify_all();
+        std::fprintf(stderr, "workflow: notified all\n");
+
+        for (;;) {
+            std::fprintf(stderr, "workflow: waiting on cond\n");
+            barrier_cond.wait(barrier_lock);
+            std::fprintf(stderr, "workflow: checking count: %d/%d\n", barrier_count, {{ tasks|length }});
+            if (barrier_count == {{ tasks|length }}) break;
+        }
+
+        barrier_cond.notify_all();
+        barrier_lock.unlock();
+
+        {% for task in tasks %}
+        std::fprintf(stderr, "workflow: waiting on {{ loop.index }}/{{ loop.length }}\n");
+        wait(NULL);
+        {% endfor %}
+
+        std::fprintf(stderr, "workflow: finished\n");
+	}
+    {% endif %}
 
     int main(int argc, char **argv) {
-        {% if context.uses_mpi %}
         MPI_Init(&argc, &argv);
-        {% endif %}
 
         (void)argc;
         (void)argv;
@@ -330,35 +412,46 @@ template = Template(dedent(r"""
 
         return 0;
     }
-"""))
+""")
 
 
 def main(definitions):
-    task_names = []
-    for prodnames, consnames, options in definitions:
-        for task_name in prodnames + consnames:
-            if task_name not in task_names:
-                task_names.append(task_name)
+    context_definitions = []
+    task_definitions = []
+    port_definitions = []
+    for definition in definitions:
+        if len(definition) == 1:
+            context_definitions.append(definition)
+        elif len(definition) == 2:
+            task_definitions.append(definition)
+        elif len(definition) == 3:
+            port_definitions.append(definition)
+        else:
+            print('oh no')
 
-    task_names.sort()
+    assert len(context_definitions) <= 1, 'Expected 1 or fewer context definition, got %s' % (len(context_definitions),)
+    context_definition = context_definitions[0] if len(context_definitions) == 1 else None
 
     tasks = []
-    for i, task_name in enumerate(task_names):
-        task = Task(
-            number=i,
-            name=task_name,
-            ports=[],
-        )
-        tasks.append(task)
+    for task_names, options in task_definitions:
+        default_period = int(options.get('period', 1000 * 1000))  # microseconds
+
+        for task_name in task_names:
+            assert task_name not in (x.name for x in tasks), f'Task {task_name} already seen'
+
+            task = Task(
+                number=len(tasks),
+                name=task_name,
+                ports=[],
+                default_period=default_period,
+            )
+            tasks.append(task)
 
     task_lookup = { v.name: v for v in tasks }
-    
-    ports = []
-    for prodnames, consnames, options in definitions:
-        default_period = int(options.get('period', 1000 * 1000))  # microseconds
+
+    for prodnames, consnames, options in port_definitions:
         default_size = int(options.get('size', 10 * 1024))  # number of ints
         communication = options.get('comm', 'dhmem')  # dhmem or mpi
-        
 
         for prodname, consname in product(prodnames, consnames):
             producer = task_lookup[prodname]
@@ -373,42 +466,67 @@ def main(definitions):
 
             producer.ports.append(port)
             consumer.ports.append(port)
-
-            if producer.default_period is None:
-                producer.default_period = default_period
-            elif producer.default_period != default_period:
-                raise ValueError(f'Producer {producer.name} already has a period')
-
-            if consumer.default_period is None:
-                consumer.default_period = default_period
-            elif consumer.default_period != default_period:
-                raise ValueError(f'Consumer {consumer.name} already has a period')
+    
+    options = context_definition[0]
+    default_maxiter = int(options.get('maxiter', 0))
 
     context = Context(
         tasks=tasks,
+        default_maxiter=default_maxiter,
     )
 
-    #print(context.tasks[0].ports[0].mpi, file=__import__('sys').stderr)
-    print(template.render(tasks=context.tasks, context=context))
+    env = Environment(
+        undefined=StrictUndefined,
+    )
+
+    template = env.from_string(template_source)
+
+    output = template.render(
+        tasks=context.tasks,
+        context=context,
+    )
+    print(output)
 
 
 def cli():
     def definition(s):
-        producers, consumers, options = s.split('/', 3)
-        producers = producers.split(',')
-        consumers = consumers.split(',')
-        options = [ x.split('=', 1) for x in options.split(',') ]
-        options = { k: v for option in options for k, v in [option] }
-        return producers, consumers, options
+        try:
+            producers, consumers, options = s.split('/')
+        except ValueError:
+            pass
+        else:
+            producers = producers.split(',')
+            consumers = consumers.split(',')
+            options = [ x.split('=', 1) for x in options.split(',') ]
+            options = { k: v for option in options for k, v in [option] }
+            return producers, consumers, options
 
+        try:
+            tasks, options = s.split('/')
+        except ValueError:
+            pass
+        else:
+            tasks = tasks.split(',')
+            options = [ x.split('=', 1) for x in options.split(',') ]
+            options = { k: v for option in options for k, v in [option] }
+            return tasks, options
+
+        try:
+            options, = s.split('/')
+        except ValueError:
+            pass
+        else:
+            options = [ x.split('=', 1) for x in options.split(',') ]
+            options = { k: v for option in options for k, v in [option] }
+            return (options,)
+
+        raise argparse.ArgumentError('bad definition: %r' % (s,)) 
 
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument('definitions', type=definition, nargs='+')
     args = vars(parser.parse_args())
-
-    print(args['definitions'], file=__import__('sys').stderr)
 
     main(**args)
 

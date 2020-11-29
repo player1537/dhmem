@@ -1,278 +1,294 @@
 
-#include <array>
-#include <cstdio>
-#include <memory>
-#include <vector>
+    #include <array>
+    #include <cstdio>
+    #include <memory>
+    #include <vector>
 
-#include <unistd.h>
-#include <sys/wait.h>
+    #include <unistd.h>
+    #include <sys/wait.h>
 
-#include <mpi.h>
+    #include <mpi.h>
 
-#include <dhmem/dhmem.h>
+    #include <dhmem/dhmem.h>
 
-struct dhmem_data {
-    dhmem_data(dhmem::allocator<void> &alloc)
-        : vec(alloc)
-        {}
-    dhmem::vector<int> vec;
-};
+    struct dhmem_data {
+        dhmem_data(dhmem::allocator<void> &alloc)
+            : vec(alloc)
+            {}
+        dhmem::vector<int> vec;
+    };
 
-struct mpi_data {
-    mpi_data()
-        : vec()
-        {}
-    std::vector<int> vec;
-};
-
-
-void a_function(dhmem::Dhmem &dhmem) {
-    
-    
-    char *s;
-    
+    struct mpi_data {
+        mpi_data()
+            : vec()
+            {}
+        std::vector<int> vec;
+    };
 
     
-    
-    useconds_t exp_time =
-        (s = getenv("A_TIME"))
-            ? (useconds_t)atol(s)
-            : 1000000;
-    
-
-    
-    
-    size_t a_out_b_in_size = 
-        (s = getenv("A_OUT_B_IN_SIZE"))
-            ? (size_t)atol(s)
-            : 102400;
-    
-
-    
-    
-    
-    
-
-    
-    
-    
-    
-
-    
-    
-    
-    auto a_out_b_in_data = mpi_data();
-    
-    
-
-    
-    
-
-    for (int i=0;; ++i) {
+    void a_function(dhmem::Dhmem &dhmem) {
         
-        struct timespec start;
-        clock_gettime(CLOCK_MONOTONIC, &start);
+        char *s;
+
+        
+        
+        useconds_t exp_time =
+            (s = getenv("A_TIME"))
+                ? (useconds_t)atol(s)
+                : 0;
         
 
         
-        if (i == 0) {
-            
-            a_out_b_in_data.vec.resize(a_out_b_in_size);
-            
-        }
+        size_t maxiter =
+            (s = getenv("DHMEM_MAXITER"))
+                ? (size_t)atol(s)
+                : 1024;
+
+        
+        
+        size_t a_out_b_in_size = 
+            (s = getenv("A_OUT_B_IN_SIZE"))
+                ? (size_t)atol(s)
+                : 10240;
         
 
-        // receive
-        {
+        
+        
+        
+        
+
+        
+        
+        
+        
+
+        
+        
+        
+        std::fprintf(stderr, "a: mpi a_out_b_in_data\n");
+        auto a_out_b_in_data = mpi_data();
+        
+        
+
+        
+        
+
+        for (int i=0; (maxiter ? i<maxiter : 1); ++i) {
+            
+            struct timespec start;
+            clock_gettime(CLOCK_MONOTONIC, &start);
             
 
             
-            
-
-            
-
-            
-
-            
-        }
-
-        // send
-        {
-            
-            
-            
-
-            
-            for (int j=0; j<a_out_b_in_data.vec.size(); ++j) {
-                a_out_b_in_data.vec[j]
-                    = 100 * 100 * 100 * ("a"[0] - 'a' + 1)
-                    + 100 * 100 *       ("b"[0] - 'a' + 1)
-                    + 100 * i
-                    + j;
+            if (i == 0) {
+                
+                a_out_b_in_data.vec.resize(a_out_b_in_size);
+                
             }
             
 
-            
-            
-            
-            
-
-            
-            
-            
+            // receive
             {
-                int vecsize;
-                vecsize = a_out_b_in_data.vec.size();
-                MPI_Send(&vecsize, 1, MPI_INT, 1, 1, MPI_COMM_WORLD);
-                MPI_Send(a_out_b_in_data.vec.data(), vecsize, MPI_INT, 1, 1, MPI_COMM_WORLD);
+                
+
+                
+                
+
+                
+
+                
+
+                
+            }
+
+            // send
+            {
+                
+                
+                
+
+                
+                for (int j=0; j<a_out_b_in_data.vec.size(); ++j) {
+                    a_out_b_in_data.vec[j]
+                        = 100 * 100 * 100 * ("a"[0] - 'a' + 1)
+                        + 100 * 100 *       ("b"[0] - 'a' + 1)
+                        + 100 * i
+                        + j;
+                }
+                
+
+                
+                
+                
+                
+
+                
+                
+                
+                {
+                    int vecsize;
+                    vecsize = a_out_b_in_data.vec.size();
+                    MPI_Send(&vecsize, 1, MPI_INT, 1, 1, MPI_COMM_WORLD);
+                    MPI_Send(a_out_b_in_data.vec.data(), vecsize, MPI_INT, 1, 1, MPI_COMM_WORLD);
+                }
+                
+                
+
+                
+                
+                
+            }
+
+            
+            struct timespec end;
+            clock_gettime(CLOCK_MONOTONIC, &end);
+
+            useconds_t got_time
+                = (1000 * 1000 * end.tv_sec + end.tv_nsec / 1000)
+                - (1000 * 1000 * start.tv_sec + start.tv_nsec / 1000);
+
+            if (exp_time == 0) {
+                // no op
+            } else if (got_time > exp_time) {
+                std::fprintf(stderr, "a: loop took too %dus long\n", got_time - exp_time);
+            } else {
+                usleep(exp_time - got_time);
             }
             
-            
-
-            
-            
-            
         }
+    }
+    
+    void b_function(dhmem::Dhmem &dhmem) {
+        
+        char *s;
 
         
-        struct timespec end;
-        clock_gettime(CLOCK_MONOTONIC, &end);
+        
 
-        useconds_t got_time
-            = (1000 * 1000 * end.tv_sec + end.tv_nsec / 1000)
-            - (1000 * 1000 * start.tv_sec + start.tv_nsec / 1000);
+        
+        size_t maxiter =
+            (s = getenv("DHMEM_MAXITER"))
+                ? (size_t)atol(s)
+                : 1024;
 
-        if (exp_time == 0) {
-            // no op
-        } else if (got_time > exp_time) {
-            std::fprintf(stderr, "a: loop took too %dus long\n", got_time - exp_time);
+        
+        
+
+        
+        
+        
+        
+
+        
+        
+        
+        
+
+        
+        
+        
+        std::fprintf(stderr, "b: mpi a_out_b_in_data\n");
+        auto a_out_b_in_data = mpi_data();
+        
+        
+
+        
+        
+        
+        
+
+        for (int i=0; (maxiter ? i<maxiter : 1); ++i) {
+            
+
+            
+
+            // receive
+            {
+                
+                
+                
+
+                
+                
+                
+                {
+                    int vecsize;
+                    MPI_Recv(&vecsize, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    a_out_b_in_data.vec.resize(vecsize);
+                    MPI_Recv(a_out_b_in_data.vec.data(), vecsize, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+                
+                
+
+                
+                int a_out_b_in_sum = 0;
+                for (int j=0; j<a_out_b_in_data.vec.size(); ++j) {
+                    a_out_b_in_sum += a_out_b_in_data.vec[j];
+                }
+                std::fprintf(stderr, "b: i = %d, first = %d, a_out_b_in_sum = %d\n", i, a_out_b_in_data.vec[0], a_out_b_in_sum);
+                
+
+                
+                
+                
+
+                
+                
+                
+            }
+
+            // send
+            {
+                
+
+                
+
+                
+                
+
+                
+                
+
+                
+            }
+
+            
+        }
+    }
+    
+
+    
+    void workflow(void) {
+        dhmem::Dhmem dhmem("foobar");
+
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+        if (0) {
+        
+        } else if (rank == 0) {
+            std::fprintf(stderr, "a: starting\n");
+            a_function(dhmem);
+        
+        } else if (rank == 1) {
+            std::fprintf(stderr, "b: starting\n");
+            b_function(dhmem);
+        
         } else {
-            usleep(exp_time - got_time);
+            std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
         }
-        
     }
-}
-
-void b_function(dhmem::Dhmem &dhmem) {
-    
     
 
     
-    
 
-    
-    
+    int main(int argc, char **argv) {
+        MPI_Init(&argc, &argv);
 
-    
-    
-    
-    
+        (void)argc;
+        (void)argv;
 
-    
-    
-    
-    
+        workflow();
 
-    
-    
-    
-    auto a_out_b_in_data = mpi_data();
-    
-    
-
-    
-    
-    
-    
-
-    for (int i=0;; ++i) {
-        
-
-        
-
-        // receive
-        {
-            
-            
-            
-
-            
-            
-            
-            {
-                int vecsize;
-                MPI_Recv(&vecsize, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                a_out_b_in_data.vec.resize(vecsize);
-                MPI_Recv(a_out_b_in_data.vec.data(), vecsize, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }
-            
-            
-
-            
-            int a_out_b_in_sum = 0;
-            for (int j=0; j<a_out_b_in_data.vec.size(); ++j) {
-                a_out_b_in_sum += a_out_b_in_data.vec[j];
-            }
-            std::fprintf(stderr, "b: first = %d, a_out_b_in_sum = %d\n", a_out_b_in_data.vec[0], a_out_b_in_sum);
-            
-
-            
-            
-            
-
-            
-            
-            
-        }
-
-        // send
-        {
-            
-
-            
-
-            
-            
-
-            
-            
-
-            
-        }
-
-        
+        return 0;
     }
-}
-
-
-void workflow(void) {
-    dhmem::Dhmem dhmem("foobar");
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    if (0) {
-    
-    } else if (rank == 0) {
-        a_function(dhmem);
-    
-    } else if (rank == 1) {
-        b_function(dhmem);
-    
-    } else {
-        std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
-    }
-}
-
-int main(int argc, char **argv) {
-    
-    MPI_Init(&argc, &argv);
-    
-
-    (void)argc;
-    (void)argv;
-
-    workflow();
-
-    return 0;
-}

@@ -1,0 +1,3 @@
+maxiter=1024
+a,b/period=0
+a/b/comm=mpi
