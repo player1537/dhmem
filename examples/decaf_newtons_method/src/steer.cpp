@@ -44,8 +44,8 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
 
         pConstructData &in_msg = in_data[0];
 
-        float x, y, yp;
-        x = in_msg->getFieldData<SimpleFieldf>("x").getData();
+        float y, yp;
+        float &x = dhmem.load<float>(in_msg->getFieldData<SimpleField<dhmem::handle>>("x").getData());
         y = in_msg->getFieldData<SimpleFieldf>("y").getData();
         yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
 
@@ -67,7 +67,7 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
 int main(int argc,
          char** argv)
 {
-    dhmem::Dhmem dhmem("foobar");
+    dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     Workflow workflow;
     Workflow::make_wflow_from_json(workflow, "decaf-henson.json");

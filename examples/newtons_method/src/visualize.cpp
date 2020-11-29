@@ -40,7 +40,7 @@ void visualize(dhmem::Dhmem &dhmem) {
 int main(int argc, char **argv) {
     std::printf("Hello from visualize\n");
 
-    dhmem::Dhmem dhmem("foobar");
+    dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     visualize(dhmem);
 }

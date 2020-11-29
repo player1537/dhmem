@@ -58,7 +58,7 @@ ExternalProject_Add(
         -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
         -DHENSON_INCLUDE_DIR:PATH=${Henson_INSTALL_DIR}
         -DHENSON_LIBRARY:PATH=${Henson_INSTALL_DIR}/lib/libhenson.a
-        -Dbuild_examples:BOOL=OFF
+        -Dbuild_examples:BOOL=ON
 )
 ExternalProject_Add_stepDependencies(${EP_DECAF}
     build

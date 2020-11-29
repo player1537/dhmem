@@ -73,7 +73,7 @@ void consumer(dhmem::Dhmem &dhmem) {
 
 void workflow(void) {
     std::fprintf(stderr, "Start\n");
-    dhmem::Dhmem dhmem("foobar");
+    dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     auto &start_mutex = dhmem.simple<dhmem::mutex>("start_mutex");
     auto &start_cond = dhmem.simple<dhmem::cond>("start_cond");

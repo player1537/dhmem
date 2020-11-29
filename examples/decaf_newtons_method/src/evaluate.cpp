@@ -2,6 +2,7 @@
 #include <bredala/data_model/simplefield.hpp>
 #include <bredala/data_model/boost_macros.h>
 #include <dhmem/dhmem.h>
+//#include <dhmem/support/decaf.h>
 
 #include <assert.h>
 #include <math.h>
@@ -44,7 +45,7 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
 
         pConstructData &in_msg = in_data[0];
 
-        float x;
+        float &x = dhmem.simple<float>("e_out__x");
         if (in_msg->isToken())
             x = x0;
         else
@@ -62,7 +63,7 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
         SimpleFieldf Afield(A);
         SimpleFieldf Bfield(B);
         SimpleFieldf Cfield(C);
-        SimpleFieldf xfield(x);
+        SimpleField<dhmem::handle> xfield(dhmem.save(x));
         SimpleFieldf yfield(y);
         SimpleFieldf ypfield(yp);
 
@@ -88,7 +89,7 @@ int main(int argc,
     if (!henson_active()) {}
     if (henson_stop()) {}
 
-    dhmem::Dhmem dhmem("foobar");
+    dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     Workflow workflow;
     Workflow::make_wflow_from_json(workflow, "decaf-henson.json");

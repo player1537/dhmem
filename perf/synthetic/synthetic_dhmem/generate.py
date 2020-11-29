@@ -17,7 +17,7 @@ class Port:
     producer: 'Task'
     consumer: 'Task'
     communication: str
-    default_size: int = field(default=None)  # size of int array
+    default_size: int  # size of int array
 
     @property
     def dhmem(self) -> bool:
@@ -46,7 +46,7 @@ class Task:
     number: int
     name: str
     ports: List[Port]
-    default_period: int = field(default=None)  # microseconds
+    default_period: int  # microseconds
 
     @property
     def inports(self) -> List[Port]:
@@ -73,7 +73,8 @@ class Task:
 @dataclass
 class Context:
     tasks: List[Task]
-    default_maxiter: int = field(default=0)
+    default_maxiter: int
+    default_name: str
 
     @property
     def uses_mpi(self) -> bool:
@@ -323,15 +324,22 @@ template_source = dedent(r"""
     {% endfor %}
 
     {% if context.all_mpi %}
-    void workflow(void) {
-        dhmem::Dhmem dhmem("foobar");
-
+    void workflow(std::string &name) {
         int rank;
+
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
         if (0) {
         {% for task in tasks %}
         } else if (rank == {{ task.number }}) {
+            {% if task.number == 0 %}
+            dhmem::Dhmem dhmem(dhmem::force_create_only, name, 65536);
+            MPI_Barrier(MPI_COMM_WORLD);
+            {% else %}
+            MPI_Barrier(MPI_COMM_WORLD);
+            dhmem::Dhmem dhmem(dhmem::open_only, name);
+            {% endif %}
+
             std::fprintf(stderr, "{{ task.name }}: starting\n");
             {{ task.g('function') }}(dhmem);
         {% endfor %}
@@ -342,10 +350,10 @@ template_source = dedent(r"""
     {% endif %}
 
     {% if context.all_dhmem %}
-    void workflow(void) {
+    void workflow(std::string &name) {
         std::fprintf(stderr, "workflow: start\n");
 
-        dhmem::Dhmem dhmem(dhmem::create_only, "foobar");
+        dhmem::Dhmem dhmem(dhmem::force_create_only, name);
         std::fprintf(stderr, "workflow: created dhmem object\n");
 
         auto &barrier_mutex = dhmem.simple<dhmem::mutex>("barrier_mutex");
@@ -403,12 +411,19 @@ template_source = dedent(r"""
     {% endif %}
 
     int main(int argc, char **argv) {
+        char *s;
+        std::string name;
         MPI_Init(&argc, &argv);
 
         (void)argc;
         (void)argv;
 
-        workflow();
+        name =
+            (s = getenv("{{ context.g('name') }}"))
+                ? s
+                : "{{ context.default_name }}";
+
+        workflow(name);
 
         return 0;
     }
@@ -469,10 +484,12 @@ def main(definitions):
     
     options = context_definition[0]
     default_maxiter = int(options.get('maxiter', 0))
+    default_name = options.get('name', 'dhmem')
 
     context = Context(
         tasks=tasks,
         default_maxiter=default_maxiter,
+        default_name=default_name,
     )
 
     env = Environment(

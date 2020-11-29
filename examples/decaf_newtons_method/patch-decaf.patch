@@ -1,6 +1,6 @@
-diff -Naur a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2020-08-14 12:34:41.629614395 -0500
-+++ b/CMakeLists.txt	2020-08-14 12:36:19.257772769 -0500
+diff -ruN a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2020-11-24 08:37:29.239699718 -0600
++++ b/CMakeLists.txt	2020-11-24 08:35:41.675183827 -0600
 @@ -9,6 +9,7 @@
  option                      (build_manala       "Build Manala libraries and examples"           ON)
  option                      (build_decaf        "Build the Decaf workflow system"               ON)
@@ -19,3 +19,15 @@ diff -Naur a/CMakeLists.txt b/CMakeLists.txt
  add_subdirectory            (python)
  
  if                          (build_tests)
+diff -ruN a/examples/CMakeLists.txt b/examples/CMakeLists.txt
+--- a/examples/CMakeLists.txt	2020-11-24 08:35:50.137492214 -0600
++++ b/examples/CMakeLists.txt	2020-11-24 08:38:09.305049832 -0600
+@@ -12,7 +12,7 @@
+ #    add_subdirectory              (manala)
+ #    add_subdirectory              (contract)
+     add_subdirectory              (henson)
+-    add_subdirectory              (fermi_hep) #orc@02-04: adding Fermi HEP examples
++#    add_subdirectory              (fermi_hep) #orc@02-04: adding Fermi HEP examples
+     #  add_subdirectory            (flowvr)
+ 
+     if                            (LAMMPS_INCLUDE_DIR AND

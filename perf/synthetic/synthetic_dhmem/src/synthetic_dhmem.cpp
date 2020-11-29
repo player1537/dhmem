@@ -258,19 +258,28 @@
     
 
     
-    void workflow(void) {
-        dhmem::Dhmem dhmem("foobar");
-
+    void workflow(std::string &name) {
         int rank;
+
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
         if (0) {
         
         } else if (rank == 0) {
+            
+            dhmem::Dhmem dhmem(dhmem::force_create_only, name, 65536);
+            MPI_Barrier(MPI_COMM_WORLD);
+            
+
             std::fprintf(stderr, "a: starting\n");
             a_function(dhmem);
         
         } else if (rank == 1) {
+            
+            MPI_Barrier(MPI_COMM_WORLD);
+            dhmem::Dhmem dhmem(dhmem::open_only, name);
+            
+
             std::fprintf(stderr, "b: starting\n");
             b_function(dhmem);
         
@@ -283,12 +292,19 @@
     
 
     int main(int argc, char **argv) {
+        char *s;
+        std::string name;
         MPI_Init(&argc, &argv);
 
         (void)argc;
         (void)argv;
 
-        workflow();
+        name =
+            (s = getenv("dhmem_name"))
+                ? s
+                : "dhmem";
+
+        workflow(name);
 
         return 0;
     }

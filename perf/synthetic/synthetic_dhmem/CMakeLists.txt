@@ -12,7 +12,11 @@ file(STRINGS "definitions.txt" _definitions)
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/synthetic_dhmem.cpp
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/venv/bin/python generate.py ${_definitions} > ${CMAKE_CURRENT_SOURCE_DIR}/src/synthetic_dhmem.cpp
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/definitions.txt
+        ${CMAKE_CURRENT_SOURCE_DIR}/generate.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMAND ./venv/bin/python ./generate.py ${_definitions} > ./src/synthetic_dhmem.cpp
 )
 
 add_executable(perf_synthetic_dhmem src/synthetic_dhmem.cpp)
