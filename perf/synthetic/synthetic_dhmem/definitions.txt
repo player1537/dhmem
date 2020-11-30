@@ -1,3 +1,4 @@
-maxiter=1024
-a,b/period=0
-a/b/comm=dhmem
+maxiter=10240,print=0,segment=1MB
+start,a,end/period=0
+start/a/comm=dhmem
+a/end/comm=dhmem

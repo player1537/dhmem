@@ -75,6 +75,8 @@ class Context:
     tasks: List[Task]
     default_maxiter: int
     default_name: str
+    default_print: int
+    default_segment: int
 
     @property
     def uses_mpi(self) -> bool:
@@ -138,6 +140,12 @@ template_source = dedent(r"""
         {# helper variable for environment variables #}
         char *s;
 
+        {# print or not #}
+        int do_print =
+            (s = getenv("{{ context.g('print')|upper }}"))
+                ? atoi(s)
+                : {{ context.default_print }};
+
         {# task period #}
         {% if task.outports %}
         useconds_t exp_time =
@@ -165,15 +173,15 @@ template_source = dedent(r"""
         {% if port.dhmem %}
         auto &{{ port.g('mutex') }} = dhmem.simple<dhmem::mutex>("{{ port.g('mutex') }}");
         auto &{{ port.g('cond') }} = dhmem.simple<dhmem::cond>("{{ port.g('cond') }}");
-        auto &{{ port.g('ready_mutex') }} = dhmem.simple<dhmem::mutex>("{{ port.g('ready_mutex') }}");
-        auto &{{ port.g('ready_cond') }} = dhmem.simple<dhmem::cond>("{{ port.g('ready_cond') }}");
+        //auto &{{ port.g('ready_mutex') }} = dhmem.simple<dhmem::mutex>("{{ port.g('ready_mutex') }}");
+        //auto &{{ port.g('ready_cond') }} = dhmem.simple<dhmem::cond>("{{ port.g('ready_cond') }}");
         {% endif %}
         {% endfor %}
 
         {# dhmem data structures #}
         {% for port in task.ports %}
         {% if port.dhmem %}
-        std::fprintf(stderr, "{{ task.name }}: dhmem {{ port.g('data') }}\n");
+        if (do_print) std::fprintf(stderr, "{{ task.name }}: dhmem {{ port.g('data') }}\n");
         auto &{{ port.g('data') }} = dhmem.container<dhmem_data>("{{ port.g('data') }}");
         {% endif %}
         {% endfor %}
@@ -181,7 +189,7 @@ template_source = dedent(r"""
         {# mpi data structures #}
         {% for port in task.ports %}
         {% if port.mpi %}
-        std::fprintf(stderr, "{{ task.name }}: mpi {{ port.g('data') }}\n");
+        if (do_print) std::fprintf(stderr, "{{ task.name }}: mpi {{ port.g('data') }}\n");
         auto {{ port.g('data') }} = mpi_data();
         {% endif %}
         {% endfor %}
@@ -189,7 +197,7 @@ template_source = dedent(r"""
         {# dhmem locks #}
         {% for port in task.inports %}
         {% if port.dhmem %}
-        std::fprintf(stderr, "{{ task.name }}: {{ port.g('lock') }}\n");
+        if (do_print) std::fprintf(stderr, "{{ task.name }}: {{ port.g('lock') }}\n");
         dhmem::scoped_lock {{ port.g('lock') }}({{ port.g('mutex') }});
         {% endif %}
         {% endfor %}
@@ -234,20 +242,20 @@ template_source = dedent(r"""
                 for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
                     {{ port.g('sum') }} += {{ port.g('data') }}.vec[j];
                 }
-                std::fprintf(stderr, "{{ task.name }}: i = %d, first = %d, {{ port.g('sum') }} = %d\n", i, {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
+                if (do_print) std::fprintf(stderr, "{{ task.name }}: i = %d, first = %d, {{ port.g('sum') }} = %d\n", i, {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
                 {% endfor %}
 
                 {% for port in task.inports %}
                 {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_mutex') }}: lock\n");
-                dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
+                //dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
                 {% endif %}
                 {% endfor %}
 
                 {% for port in task.inports %}
                 {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_cond') }}: notify\n");
-                {{ port.g('ready_cond') }}.notify_one();
+                //{{ port.g('ready_cond') }}.notify_one();
                 {% endif %}
                 {% endfor %}
             }
@@ -257,7 +265,7 @@ template_source = dedent(r"""
                 {% for port in task.outports %}
                 {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_mutex') }}: lock\n");
-                dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
+                //dhmem::scoped_lock {{ port.g('ready_lock') }}({{ port.g('ready_mutex') }});
                 {% endif %}
                 {% endfor %}
 
@@ -298,7 +306,7 @@ template_source = dedent(r"""
                 {% for port in task.outports %}
                 {% if port.dhmem %}
                 //std::fprintf(stderr, "{{ task.name }}: {{ port.g('ready_cond') }}: wait\n");
-                {{ port.g('ready_cond') }}.wait({{ port.g('ready_lock') }});
+                //{{ port.g('ready_cond') }}.wait({{ port.g('ready_lock') }});
                 {% endif %}
                 {% endfor %}
             }
@@ -314,7 +322,7 @@ template_source = dedent(r"""
             if (exp_time == 0) {
                 // no op
             } else if (got_time > exp_time) {
-                std::fprintf(stderr, "{{ task.name }}: loop took too %dus long\n", got_time - exp_time);
+                if (do_print) std::fprintf(stderr, "{{ task.name }}: loop took too %dus long\n", got_time - exp_time);
             } else {
                 usleep(exp_time - got_time);
             }
@@ -324,7 +332,7 @@ template_source = dedent(r"""
     {% endfor %}
 
     {% if context.all_mpi %}
-    void workflow(std::string &name) {
+    void workflow(std::string &name, int segment) {
         int rank;
 
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -333,14 +341,14 @@ template_source = dedent(r"""
         {% for task in tasks %}
         } else if (rank == {{ task.number }}) {
             {% if task.number == 0 %}
-            dhmem::Dhmem dhmem(dhmem::force_create_only, name, 65536);
+            dhmem::Dhmem dhmem(dhmem::force_create_only, name, segment);
             MPI_Barrier(MPI_COMM_WORLD);
             {% else %}
             MPI_Barrier(MPI_COMM_WORLD);
             dhmem::Dhmem dhmem(dhmem::open_only, name);
             {% endif %}
 
-            std::fprintf(stderr, "{{ task.name }}: starting\n");
+            //std::fprintf(stderr, "{{ task.name }}: starting\n");
             {{ task.g('function') }}(dhmem);
         {% endfor %}
         } else {
@@ -350,51 +358,51 @@ template_source = dedent(r"""
     {% endif %}
 
     {% if context.all_dhmem %}
-    void workflow(std::string &name) {
-        std::fprintf(stderr, "workflow: start\n");
+    void workflow(std::string &name, int segment) {
+        //std::fprintf(stderr, "workflow: start\n");
 
-        dhmem::Dhmem dhmem(dhmem::force_create_only, name);
-        std::fprintf(stderr, "workflow: created dhmem object\n");
+        dhmem::Dhmem dhmem(dhmem::force_create_only, name, segment);
+        //std::fprintf(stderr, "workflow: created dhmem object\n");
 
         auto &barrier_mutex = dhmem.simple<dhmem::mutex>("barrier_mutex");
         auto &barrier_cond = dhmem.simple<dhmem::cond>("barrier_cond");
         auto &barrier_count = dhmem.simple<int>("barrier_count");
-        std::fprintf(stderr, "workflow: created sync primitives\n");
+        //std::fprintf(stderr, "workflow: created sync primitives\n");
 
         dhmem::scoped_lock barrier_lock(barrier_mutex);
         barrier_count = 0;
-        std::fprintf(stderr, "workflow: created lock\n");
+        //std::fprintf(stderr, "workflow: created lock\n");
 
         {% for task in tasks %}
         if (fork() == 0) {
             {
-                std::fprintf(stderr, "{{ task.name }}: forked\n");
+                //std::fprintf(stderr, "{{ task.name }}: forked\n");
                 dhmem::scoped_lock barrier_lock(barrier_mutex);
-                std::fprintf(stderr, "{{ task.name }}: acquired lock\n");
+                //std::fprintf(stderr, "{{ task.name }}: acquired lock\n");
                 ++barrier_count;
                 barrier_cond.notify_all();
 
                 for (;;) {
                     barrier_cond.wait(barrier_lock);
-                    std::fprintf(stderr, "{{ task.name }}: waited on condition\n");
+                    //std::fprintf(stderr, "{{ task.name }}: waited on condition\n");
                     if (barrier_count == {{ loop.length }}) break;
                 }
             }
-            std::fprintf(stderr, "{{ task.name }}: start\n");
+            //std::fprintf(stderr, "{{ task.name }}: start\n");
             {{ task.g('function') }}(dhmem);
-            std::fprintf(stderr, "{{ task.name }}: finished\n");
+            //std::fprintf(stderr, "{{ task.name }}: finished\n");
             std::exit(0);
         }
         {% endfor %}
 
-        std::fprintf(stderr, "workflow: forked children\n");
+        //std::fprintf(stderr, "workflow: forked children\n");
         barrier_cond.notify_all();
-        std::fprintf(stderr, "workflow: notified all\n");
+        //std::fprintf(stderr, "workflow: notified all\n");
 
         for (;;) {
-            std::fprintf(stderr, "workflow: waiting on cond\n");
+            //std::fprintf(stderr, "workflow: waiting on cond\n");
             barrier_cond.wait(barrier_lock);
-            std::fprintf(stderr, "workflow: checking count: %d/%d\n", barrier_count, {{ tasks|length }});
+            //std::fprintf(stderr, "workflow: checking count: %d/%d\n", barrier_count, {{ tasks|length }});
             if (barrier_count == {{ tasks|length }}) break;
         }
 
@@ -402,32 +410,53 @@ template_source = dedent(r"""
         barrier_lock.unlock();
 
         {% for task in tasks %}
-        std::fprintf(stderr, "workflow: waiting on {{ loop.index }}/{{ loop.length }}\n");
+        //std::fprintf(stderr, "workflow: waiting on {{ loop.index }}/{{ loop.length }}\n");
         wait(NULL);
         {% endfor %}
 
-        std::fprintf(stderr, "workflow: finished\n");
+        //std::fprintf(stderr, "workflow: finished\n");
 	}
     {% endif %}
 
     int main(int argc, char **argv) {
         char *s;
         std::string name;
+        int segment;
+
         MPI_Init(&argc, &argv);
 
         (void)argc;
         (void)argv;
 
         name =
-            (s = getenv("{{ context.g('name') }}"))
+            (s = getenv("{{ context.g('name')|upper }}"))
                 ? s
                 : "{{ context.default_name }}";
 
-        workflow(name);
+        segment =
+            (s = getenv("{{ context.g('segment')|upper }}"))
+                ? atoi(s)
+                : {{ context.default_segment }};
+
+        workflow(name, segment);
 
         return 0;
     }
 """)
+
+
+# Thanks https://stackoverflow.com/a/60708339
+def parse_size(size):
+    import re
+
+    units = {"B": 1, "KB": 2**10, "MB": 2**20, "GB": 2**30, "TB": 2**40}
+
+    size = size.upper()
+    if ' ' not in size:
+        size = re.sub(r'([KMGT]?B)', r' \1', size)
+
+    number, unit = [string.strip() for string in size.split()]
+    return int(float(number) * units[unit])
 
 
 def main(definitions):
@@ -445,7 +474,7 @@ def main(definitions):
             print('oh no')
 
     assert len(context_definitions) <= 1, 'Expected 1 or fewer context definition, got %s' % (len(context_definitions),)
-    context_definition = context_definitions[0] if len(context_definitions) == 1 else None
+    context_definition = context_definitions[0] if len(context_definitions) == 1 else ({},)
 
     tasks = []
     for task_names, options in task_definitions:
@@ -485,11 +514,15 @@ def main(definitions):
     options = context_definition[0]
     default_maxiter = int(options.get('maxiter', 0))
     default_name = options.get('name', 'dhmem')
+    default_print = int(options.get('print', 1))
+    default_segment = parse_size(options.get('segment', 65536))
 
     context = Context(
         tasks=tasks,
         default_maxiter=default_maxiter,
         default_name=default_name,
+        default_print=default_print,
+        default_segment=default_segment,
     )
 
     env = Environment(
