@@ -2,6 +2,7 @@
 #include <bredala/data_model/simplefield.hpp>
 #include <bredala/data_model/boost_macros.h>
 #include <dhmem/dhmem.h>
+#include <dhmem/support/decaf.h>
 
 #include <assert.h>
 #include <math.h>
@@ -31,7 +32,7 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
 {
     char *s;
     float eps;
-    int i;
+    int i = 0;
 
     eps = (s = getenv("EPS")) ? atof(s) : 0.001;
 
@@ -45,14 +46,32 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
         pConstructData &in_msg = in_data[0];
 
         float y, yp;
-        float &x = dhmem.load<float>(in_msg->getFieldData<SimpleField<dhmem::handle>>("x").getData());
+
+        std::fprintf(stderr, "s: getting x field\n");
+        SimpleField<dhmem::handle> xfield1 = in_msg->getFieldData<SimpleField<dhmem::handle>>("x");
+        std::fprintf(stderr, "s: done getting x field\n");
+
+        std::fprintf(stderr, "s: getting x handle\n");
+        dhmem::handle h = xfield1.getData();
+        std::fprintf(stderr, "s: done getting x handle %lu\n", h);
+
+        std::fprintf(stderr, "s: loading x\n");
+        float &x = dhmem.load<float>(h);
+        std::fprintf(stderr, "s: done loading x %f\n", x);
+
         y = in_msg->getFieldData<SimpleFieldf>("y").getData();
         yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
 
         if (abs(y / yp) < eps) break;
         x -= y / yp;
 
-        SimpleFieldf xfield(x);
+        std::fprintf(stderr, "s: saving x\n");
+        dhmem::handle h2 = dhmem.save(x);
+        std::fprintf(stderr, "s: done saving x %lu\n", h2);
+
+        std::fprintf(stderr, "s: creating x field\n");
+        SimpleField<dhmem::handle> xfield(h2);
+        std::fprintf(stderr, "s: done creating x field\n");
 
         pConstructData out_msg;
         out_msg->appendData("x", xfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);

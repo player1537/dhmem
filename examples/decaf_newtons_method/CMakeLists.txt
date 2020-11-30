@@ -33,6 +33,7 @@ ExternalProject_Add(
 
     CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 ExternalProject_Get_Property(${EP_HENSON} INSTALL_DIR)
 set(Henson_INSTALL_DIR ${INSTALL_DIR})
@@ -45,7 +46,7 @@ ExternalProject_Add(
 
     PREFIX ${EP_DECAF}
     GIT_REPOSITORY https://bitbucket.org/tpeterka1/decaf.git
-    GIT_TAG afadfce969de3b7b1562828e611875a21c9e5381  # origin/decaf-henson
+    GIT_TAG 032fceed8a66c99d2de83c7b1e5410993d66f9d9  # origin/decaf-henson
 
     BUILD_ALWAYS OFF
     INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/${EP_DECAF}
@@ -59,6 +60,7 @@ ExternalProject_Add(
         -DHENSON_INCLUDE_DIR:PATH=${Henson_INSTALL_DIR}
         -DHENSON_LIBRARY:PATH=${Henson_INSTALL_DIR}/lib/libhenson.a
         -Dbuild_examples:BOOL=ON
+        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 )
 ExternalProject_Add_stepDependencies(${EP_DECAF}
     build
@@ -107,17 +109,17 @@ set(_compile_defs
 )
 
 
-add_executable(decaf_evaluate src/evaluate.cpp)
+add_library(decaf_evaluate SHARED src/evaluate.cpp)
 target_link_libraries(decaf_evaluate ${_libraries})
 target_include_directories(decaf_evaluate PRIVATE ${_include_dirs})
 target_compile_definitions(decaf_evaluate PRIVATE ${_compile_defs})
 
-add_executable(decaf_steer src/steer.cpp)
+add_library(decaf_steer SHARED src/steer.cpp)
 target_link_libraries(decaf_steer ${_libraries})
 target_include_directories(decaf_steer PRIVATE ${_include_dirs})
 target_compile_definitions(decaf_steer PRIVATE ${_compile_defs})
 
-add_executable(decaf_visualize src/visualize.cpp)
+add_library(decaf_visualize SHARED src/visualize.cpp)
 target_link_libraries(decaf_visualize ${_libraries})
 target_include_directories(decaf_visualize PRIVATE ${_include_dirs})
 target_compile_definitions(decaf_visualize PRIVATE ${_compile_defs})
@@ -128,7 +130,7 @@ install(
         decaf_steer
         decaf_visualize
     EXPORT 
-        decaf_netwons_method
+        decaf_newtons_method
     DESTINATION
         bin
 )

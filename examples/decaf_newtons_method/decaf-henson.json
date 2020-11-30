@@ -5,7 +5,7 @@
             {
                 "start_proc": 0,
                 "nprocs": 1,
-                "cmdline": "../../stage/examples/decaf_newtons_method/evaluate",
+                "cmdline": "../../stage/bin/libdecaf_evaluate.so",
                 "func": "evaluate",
                 "inports": [
                     "e_in"
@@ -15,9 +15,9 @@
                 ]
             },
             {
-                "start_proc": 0,
+                "start_proc": 1,
                 "nprocs": 1,
-                "cmdline": "../../stage/examples/decaf_newtons_method/steer",
+                "cmdline": "../../stage/bin/libdecaf_steer.so",
                 "func": "steer",
                 "inports": [
                     "s_in"
@@ -27,9 +27,9 @@
                 ]
             },
             {
-                "start_proc": 1,
+                "start_proc": 2,
                 "nprocs": 1,
-                "cmdline": "../../stage/examples/decaf_newtons_method/visualize",
+                "cmdline": "../../stage/bin/libdecaf_visualize.so",
                 "func": "visualize",
                 "inports": [
                     "v_in"

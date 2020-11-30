@@ -2,7 +2,7 @@
 #include <bredala/data_model/simplefield.hpp>
 #include <bredala/data_model/boost_macros.h>
 #include <dhmem/dhmem.h>
-//#include <dhmem/support/decaf.h>
+#include <dhmem/support/decaf.h>
 
 #include <assert.h>
 #include <math.h>
@@ -45,14 +45,25 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
 
         pConstructData &in_msg = in_data[0];
 
+        std::fprintf(stderr, "e: allocating x\n");
         float &x = dhmem.simple<float>("e_out__x");
+        std::fprintf(stderr, "e: done allocating x\n");
+
         if (in_msg->isToken())
             x = x0;
         else
         {
-            SimpleFieldf field = in_msg->getFieldData<SimpleFieldf>("x");
-            if (!field) die("'x' not in message field");
-            x = field.getData();
+            std::fprintf(stderr, "e: getting x field\n");
+            SimpleField<dhmem::handle> xfield1 = in_msg->getFieldData<SimpleField<dhmem::handle>>("x");
+            std::fprintf(stderr, "e: done getting x field\n");
+
+            std::fprintf(stderr, "e: getting x handle\n");
+            dhmem::handle h = xfield1.getData();
+            std::fprintf(stderr, "e: done getting x handle %lu\n", h);
+
+            std::fprintf(stderr, "e: loading x\n");
+            x = dhmem.load<float>(h);
+            std::fprintf(stderr, "e: done loading x %f\n", x);
         }
 
         float y, yp;
@@ -63,7 +74,15 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
         SimpleFieldf Afield(A);
         SimpleFieldf Bfield(B);
         SimpleFieldf Cfield(C);
-        SimpleField<dhmem::handle> xfield(dhmem.save(x));
+
+        std::fprintf(stderr, "e: saving x\n");
+        dhmem::handle h = dhmem.save(x);
+        std::fprintf(stderr, "e: done saving x %lu\n", h);
+
+        std::fprintf(stderr, "e: creating x field\n");
+        SimpleField<dhmem::handle> xfield(h);
+        std::fprintf(stderr, "e: done creating x field\n");
+
         SimpleFieldf yfield(y);
         SimpleFieldf ypfield(yp);
 
@@ -72,12 +91,21 @@ void evaluate(Decaf *decaf, dhmem::Dhmem &dhmem)
         out_msg->appendData("A", Afield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("B", Bfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("C", Cfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
+
+        std::fprintf(stderr, "e: appending x field\n");
         out_msg->appendData("x", xfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
+        std::fprintf(stderr, "e: done appending x field\n");
+
         out_msg->appendData("y", yfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
         out_msg->appendData("yp", ypfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
 
+        std::fprintf(stderr, "e: putting data\n");
         decaf->put(out_msg, "e_out");
+        std::fprintf(stderr, "e: done putting data\n");
+
+        std::fprintf(stderr, "e: committing data\n");
         decaf->commit();
+        std::fprintf(stderr, "e: done committing data\n");
     }
 
     decaf->terminate();
