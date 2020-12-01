@@ -36,42 +36,19 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
 
     eps = (s = getenv("EPS")) ? atof(s) : 0.001;
 
-    int &n = dhmem.simple<int>("myIntName");
-
     vector<pConstructData> in_data;
     while (++i < 100 && decaf->get(in_data, "s_in"))
     {
-        fmt::print("n: {}\n", n);
-
         pConstructData &in_msg = in_data[0];
 
-        float y, yp;
-
-        std::fprintf(stderr, "s: getting x field\n");
-        SimpleField<dhmem::handle> xfield1 = in_msg->getFieldData<SimpleField<dhmem::handle>>("x");
-        std::fprintf(stderr, "s: done getting x field\n");
-
-        std::fprintf(stderr, "s: getting x handle\n");
-        dhmem::handle h = xfield1.getData();
-        std::fprintf(stderr, "s: done getting x handle %lu\n", h);
-
-        std::fprintf(stderr, "s: loading x\n");
-        float &x = dhmem.load<float>(h);
-        std::fprintf(stderr, "s: done loading x %f\n", x);
-
-        y = in_msg->getFieldData<SimpleFieldf>("y").getData();
-        yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
+        float &x = in_msg->getFieldData<SharedFieldf>("x").getData(dhmem);
+        float y = in_msg->getFieldData<SimpleFieldf>("y").getData();
+        float yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
 
         if (abs(y / yp) < eps) break;
         x -= y / yp;
 
-        std::fprintf(stderr, "s: saving x\n");
-        dhmem::handle h2 = dhmem.save(x);
-        std::fprintf(stderr, "s: done saving x %lu\n", h2);
-
-        std::fprintf(stderr, "s: creating x field\n");
-        SimpleField<dhmem::handle> xfield(h2);
-        std::fprintf(stderr, "s: done creating x field\n");
+        SharedFieldf xfield(x, dhmem);
 
         pConstructData out_msg;
         out_msg->appendData("x", xfield, DECAF_NOFLAG, DECAF_PRIVATE, DECAF_SPLIT_DEFAULT, DECAF_MERGE_DEFAULT);
@@ -83,9 +60,20 @@ void steer(Decaf *decaf, dhmem::Dhmem &dhmem)
     decaf->terminate();
 }
 
-int main(int argc,
-         char** argv)
+int main(int argc, char** argv)
 {
+    if (!henson_active())
+    {
+        fmt::print("Must run under henson, but henson is not active\n");
+        return 1;
+    }
+
+    if (henson_stop())
+    {
+        fmt::print("Stop, stop, stop at steer\n");
+        return 1;
+    }
+
     dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     Workflow workflow;

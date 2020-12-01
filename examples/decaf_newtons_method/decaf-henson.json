@@ -15,7 +15,7 @@
                 ]
             },
             {
-                "start_proc": 1,
+                "start_proc": 0,
                 "nprocs": 1,
                 "cmdline": "../../stage/bin/libdecaf_steer.so",
                 "func": "steer",
@@ -27,7 +27,7 @@
                 ]
             },
             {
-                "start_proc": 2,
+                "start_proc": 1,
                 "nprocs": 1,
                 "cmdline": "../../stage/bin/libdecaf_visualize.so",
                 "func": "visualize",

@@ -33,26 +33,13 @@ void visualize(Decaf *decaf, dhmem::Dhmem &dhmem)
     {
         pConstructData &in_msg = in_data[0];
 
-        float x0, A, B, C, y, yp;
-        x0 = in_msg->getFieldData<SimpleFieldf>("x0").getData();
-        A = in_msg->getFieldData<SimpleFieldf>("A").getData();
-        B = in_msg->getFieldData<SimpleFieldf>("B").getData();
-        C = in_msg->getFieldData<SimpleFieldf>("C").getData();
-
-        std::fprintf(stderr, "v: getting x field\n");
-        SimpleField<dhmem::handle> xfield = in_msg->getFieldData<SimpleField<dhmem::handle>>("x");
-        std::fprintf(stderr, "v: done getting x field\n");
-
-        std::fprintf(stderr, "v: getting x handle\n");
-        dhmem::handle h = xfield.getData();
-        std::fprintf(stderr, "v: done getting x handle %lu\n", h);
-
-        std::fprintf(stderr, "v: loading x\n");
-        float &x = dhmem.load<float>(h);
-        std::fprintf(stderr, "v: done loading x %f\n", x);
-
-        y = in_msg->getFieldData<SimpleFieldf>("y").getData();
-        yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
+        float x0 = in_msg->getFieldData<SimpleFieldf>("x0").getData();
+        float A = in_msg->getFieldData<SimpleFieldf>("A").getData();
+        float B = in_msg->getFieldData<SimpleFieldf>("B").getData();
+        float C = in_msg->getFieldData<SimpleFieldf>("C").getData();
+        float &x = in_msg->getFieldData<SharedFieldf>("x").getData(dhmem);
+        float y = in_msg->getFieldData<SimpleFieldf>("y").getData();
+        float yp = in_msg->getFieldData<SimpleFieldf>("yp").getData();
 
         fprintf(stderr, "vis: x0=%f A=%f B=%f C=%f x=%f y=%f yp=%f\n", x0, A, B, C, x, y, yp);
     }
@@ -60,9 +47,20 @@ void visualize(Decaf *decaf, dhmem::Dhmem &dhmem)
     decaf->terminate();
 }
 
-int main(int argc,
-         char** argv)
+int main(int argc, char** argv)
 {
+    if (!henson_active())
+    {
+        fmt::print("Must run under henson, but henson is not active\n");
+        return 1;
+    }
+
+    if (henson_stop())
+    {
+        fmt::print("Stop, stop, stop at visualize\n");
+        return 1;
+    }
+
     dhmem::Dhmem dhmem(dhmem::open_or_create, "foobar", 65536);
 
     Workflow workflow;

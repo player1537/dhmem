@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2)
+project(Dhmem)
 include(ExternalProject)
 
 option(build_examples "Build the example executables" OFF)
