@@ -1,0 +1,13 @@
+README.md
+go.sh
+CMakeLists.txt
+dhmem/CMakeLists.txt
+dhmem/src/dhmem.cpp
+dhmem/include/dhmem/dhmem.h
+dhmem/include/dhmem/support/decaf.h
+examples/newtons_method/CMakeLists.txt
+examples/newtons_method/src/evaluate.cpp
+examples/newtons_method/src/steer.cpp
+examples/newtons_method/src/visualize.cpp
+examples/decaf_newtons_method/CMakeLists.txt
+examples/decaf_newtons_method/src/evaluate.cpp

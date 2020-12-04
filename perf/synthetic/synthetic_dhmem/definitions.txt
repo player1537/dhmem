@@ -1,4 +1,4 @@
-maxiter=1024,print=0,segment=1GB
+maxiter=2048,print=0,segment=1GB
 start,a,b,c,d,e,f,g,end/period=0,size=10MB
 start/a,b,c,d,e,f,g/comm=hybrid
 a,b,c,d,e,f,g/end/comm=hybrid

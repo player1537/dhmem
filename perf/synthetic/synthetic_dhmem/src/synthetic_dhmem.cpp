@@ -47,7 +47,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -397,7 +397,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -601,7 +601,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -805,7 +805,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -1009,7 +1009,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -1213,7 +1213,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -1417,7 +1417,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -1621,7 +1621,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         
@@ -1820,7 +1820,7 @@
         size_t maxiter =
             (s = getenv("DHMEM_MAXITER"))
                 ? (size_t)atol(s)
-                : 1024;
+                : 2048;
 
         
         

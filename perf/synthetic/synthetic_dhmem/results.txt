@@ -183,3 +183,9 @@ long,1024,mpi,1GB,10MB,0,26.38,231.57,4.91
 long,2048,mpi,1GB,10MB,0,55.26,488.59,7.68
 def,maxiter,comm,segment,size,period,real,user,sys
 wide,1024,hybrid,1GB,10MB,0,8.70,72.41,4.83
+wide,1024,hybrid,1GB,10MB,0,8.72,73.20,4.30
+wide,1024,hybrid,1GB,10MB,0,8.46,71.31,3.83
+wide,1024,hybrid,1GB,10MB,0,8.10,68.09,3.87
+wide,2048,hybrid,1GB,10MB,0,16.26,139.60,5.44
+wide,2048,hybrid,1GB,10MB,0,15.20,130.43,5.26
+wide,2048,hybrid,1GB,10MB,0,16.08,138.97,4.77
