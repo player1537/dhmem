@@ -1,4 +1,10 @@
-maxiter=10240,print=0,segment=1MB
-start,a,end/period=0
-start/a/comm=dhmem
-a/end/comm=dhmem
+maxiter=2048,print=0,segment=1GB
+start,a,b,c,d,e,f,g,end/period=0
+start/a/comm=mpi,size=10MB
+a/b/comm=mpi,size=10MB
+b/c/comm=mpi,size=10MB
+c/d/comm=mpi,size=10MB
+d/e/comm=mpi,size=10MB
+e/f/comm=mpi,size=10MB
+f/g/comm=mpi,size=10MB
+g/end/comm=mpi,size=10MB

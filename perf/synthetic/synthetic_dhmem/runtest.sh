@@ -15,35 +15,35 @@ timeit() {
 def_simple() {
     np=2
     printf $'%s\n' \
-        maxiter=${maxiter},print=0,segment=1MB \
-        a,b/period=0 \
-        a/b/comm=${comm} \
+        maxiter=${maxiter},print=0,segment=${segment} \
+        a,b/period=${period} \
+        a/b/comm=${comm},size=${size} \
         > definitions.txt
 }
 
 def_wide() {
     np=9
     printf $'%s\n' \
-        maxiter=${maxiter},print=0,segment=1MB \
-        start,a,b,c,d,e,f,g,end/period=0 \
-        start/a,b,c,d,e,f,g/comm=${comm} \
-        a,b,c,d,e,f,g/end/comm=${comm} \
+        maxiter=${maxiter},print=0,segment=${segment} \
+        start,a,b,c,d,e,f,g,end/period=${period} \
+        start/a,b,c,d,e,f,g/comm=${comm},size=${size} \
+        a,b,c,d,e,f,g/end/comm=${comm},size=${size} \
         > definitions.txt
 }
 
 def_long() {
     np=9
     printf $'%s\n' \
-        maxiter=${maxiter},print=0,segment=1MB \
-        start,a,b,c,d,e,f,g,end/period=0 \
-        start/a/comm=${comm} \
-        a/b/comm=${comm} \
-        b/c/comm=${comm} \
-        c/d/comm=${comm} \
-        d/e/comm=${comm} \
-        e/f/comm=${comm} \
-        f/g/comm=${comm} \
-        g/end/comm=${comm} \
+        maxiter=${maxiter},print=0,segment=${segment} \
+        start,a,b,c,d,e,f,g,end/period=${period} \
+        start/a/comm=${comm},size=${size} \
+        a/b/comm=${comm},size=${size} \
+        b/c/comm=${comm},size=${size} \
+        c/d/comm=${comm},size=${size} \
+        d/e/comm=${comm},size=${size} \
+        e/f/comm=${comm},size=${size} \
+        f/g/comm=${comm},size=${size} \
+        g/end/comm=${comm},size=${size} \
         > definitions.txt
 }
 
@@ -56,15 +56,23 @@ comm_mpi() {
 }
 
 exec > >(tee -a results.txt)
-printf $'def,maxiter,comm,real,user,sys\n'
+printf $'def,maxiter,comm,segment,size,period,real,user,sys\n'
+for segment in 1GB; do
+for size in 10MB; do
+for period in 0; do
+for comm in hybrid dhmem mpi; do
 for def in simple wide long; do
-    for maxiter in 10240 20480; do
-        for comm in dhmem mpi; do
-            def_${def}
-            cmake &>/dev/null
-            make &>/dev/null
-            printf $'%s,%s,%s,' ${def} ${maxiter} ${comm}
-            comm_${comm}
-        done
-    done
+for maxiter in 1024 2048; do
+
+def_${def}
+cmake &>/dev/null
+make &>/dev/null
+printf $'%s,%s,%s,%s,%s,%s,' ${def} ${maxiter} ${comm} ${segment} ${size} ${period}
+timeit mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
+
+done
+done
+done
+done
+done
 done

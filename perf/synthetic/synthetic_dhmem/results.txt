@@ -26,4 +26,108 @@ wide,10240,dhmem,20.22,77.59,2.78
 wide,10240,mpi,4.86,37.92,4.77
 wide,20480,dhmem,40.12,152.35,6.25
 wide,20480,mpi,8.65,72.46,4.54
-long,10240,dhmem,
+long,10240,dhmem,def,maxiter,comm,real,user,sys
+simple,10240,dhmem,def,maxiter,comm,real,user,sys
+def,maxiter,comm,real,user,sys
+simple,10240,dhmem,2.40,4.11,0.12
+simple,10240,mpi,0.81,1.31,0.20
+simple,20480,dhmem,4.40,7.71,0.23
+simple,20480,mpi,1.29,2.32,0.15
+def,maxiter,comm,real,user,sys
+simple,10240,hybrid,1.65,2.96,0.22
+simple,20480,hybrid,2.94,5.55,0.22
+wide,10240,hybrid,9.24,77.65,4.63
+wide,20480,hybrid,19.17,165.44,6.04
+long,10240,hybrid,3.40,25.56,4.11
+long,20480,hybrid,6.15,51.34,3.11
+simple,10240,dhmem,2.84,4.76,0.31
+simple,20480,dhmem,5.47,9.38,0.41
+wide,10240,dhmem,19.21,76.95,6.16
+wide,20480,dhmem,39.03,150.92,9.51
+long,10240,dhmem,def,maxiter,comm,real,user,sys
+simple,10240,hybrid,1.63,2.91,0.23
+simple,20480,hybrid,3.03,5.76,0.19
+wide,10240,hybrid,9.22,77.16,4.90
+wide,20480,hybrid,17.60,150.77,6.65
+long,10240,hybrid,3.40,25.63,3.88
+long,20480,hybrid,5.78,47.93,3.07
+simple,10240,dhmem,2.56,4.36,0.26
+simple,20480,dhmem,4.79,8.44,0.32
+wide,10240,dhmem,20.21,77.44,5.82
+wide,20480,dhmem,39.19,153.35,8.41
+long,10240,dhmem,5.92,33.44,4.43
+long,20480,dhmem,10.84,66.11,4.21
+simple,10240,mpi,0.81,1.28,0.21
+simple,20480,mpi,1.41,2.52,0.19
+wide,10240,mpi,4.95,39.25,4.33
+wide,20480,mpi,8.97,75.46,4.33
+long,10240,mpi,1.46,8.63,3.55
+long,20480,mpi,2.37,17.02,3.41
+def,maxiter,comm,real,user,sys
+simple,10240,hybrid,Fatal error in PMPI_Send: Invalid rank, error stack:
+PMPI_Send(159): MPI_Send(buf=0x7ffe7c1c3590, count=1, MPI_INT, dest=2, tag=1, MPI_COMM_WORLD) failed
+PMPI_Send(100): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.20,0.00,0.01
+def,maxiter,comm,real,user,sys
+simple,10240,hybrid,0.64,0.95,0.23
+simple,20480,hybrid,1.11,1.90,0.20
+wide,10240,hybrid,2.71,19.47,4.09
+wide,20480,hybrid,4.78,38.21,3.83
+long,10240,hybrid,1.36,7.32,4.00
+long,20480,hybrid,2.00,13.35,3.71
+simple,10240,dhmem,0.89,1.18,0.34
+simple,20480,dhmem,1.60,2.28,0.50
+wide,10240,dhmem,11.88,22.19,7.24
+wide,20480,dhmem,17.80,41.35,8.33
+long,10240,dhmem,2.07,8.88,4.97
+long,20480,dhmem,3.13,16.65,4.50
+simple,10240,mpi,0.68,0.99,0.25
+simple,20480,mpi,1.11,1.92,0.20
+wide,10240,mpi,4.06,31.25,4.44
+wide,20480,mpi,7.33,60.92,4.11
+long,10240,mpi,1.19,7.16,2.59
+long,20480,mpi,2.03,13.74,3.47
+def,maxiter,comm,real,user,sys
+simple,10240,hybrid,terminate called after throwing an instance of 'std::length_error'
+  what():  get_next_capacity, allocator's max size reached
+Command exited with non-zero status 134
+0.32,0.23,0.18
+def,maxiter,comm,real,user,sys
+def,maxiter,comm,real,user,sys
+simple,10240,hybrid,def,maxiter,comm,segment,size,period,real,user,sys
+simple,10240,hybrid,100mb,10mb,0,73.58,146.60,0.41
+simple,20480,hybrid,100mb,10mb,0,def,maxiter,comm,segment,size,period,real,user,sys
+simple,1024,hybrid,100mb,10mb,0,7.76,15.24,0.18
+simple,2048,hybrid,100mb,10mb,0,15.97,31.63,0.20
+wide,1024,hybrid,100mb,10mb,0,terminate called after throwing an instance of 'boost::interprocess::bad_alloc'
+  what():  boost::interprocess::bad_alloc
+Command exited with non-zero status 134
+0.61,1.70,2.72
+wide,2048,hybrid,100mb,10mb,0,terminate called after throwing an instance of 'boost::interprocess::bad_alloc'
+  what():  boost::interprocess::bad_alloc
+Command exited with non-zero status 134
+0.58,1.79,2.42
+long,1024,hybrid,100mb,10mb,0,17.67,154.15,3.92
+long,2048,hybrid,100mb,10mb,0,33.78,299.05,3.83
+simple,1024,dhmem,100mb,10mb,0,12.19,22.83,0.22
+simple,2048,dhmem,100mb,10mb,0,23.85,44.14,0.23
+def,maxiter,comm,segment,size,period,real,user,sys
+simple,1024,hybrid,1GB,10MB,0,7.06,13.80,0.21
+simple,2048,hybrid,1GB,10MB,0,14.34,28.40,0.17
+wide,1024,hybrid,1GB,10MB,0,55.74,488.68,11.82
+wide,2048,hybrid,1GB,10MB,0,104.84,923.57,18.72
+long,1024,hybrid,1GB,10MB,0,17.51,152.70,3.76
+long,2048,hybrid,1GB,10MB,0,33.70,297.55,4.73
+simple,1024,dhmem,1GB,10MB,0,12.20,22.43,0.29
+simple,2048,dhmem,1GB,10MB,0,23.84,44.60,0.25
+wide,1024,dhmem,1GB,10MB,0,51.88,222.62,3.08
+wide,2048,dhmem,1GB,10MB,0,107.02,493.07,3.72
+long,1024,dhmem,1GB,10MB,0,23.86,183.05,3.34
+long,2048,dhmem,1GB,10MB,0,48.27,371.72,3.44
+simple,1024,mpi,1GB,10MB,0,9.92,19.54,0.20
+simple,2048,mpi,1GB,10MB,0,20.99,41.54,0.32
+wide,1024,mpi,1GB,10MB,0,94.12,826.35,19.57
+wide,2048,mpi,1GB,10MB,0,198.04,1746.53,34.14
+long,1024,mpi,1GB,10MB,0,27.40,240.60,4.89
+long,2048,mpi,1GB,10MB,0,54.10,479.71,6.11

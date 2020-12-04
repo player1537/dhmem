@@ -28,6 +28,10 @@ class Port:
         return self.communication == 'mpi'
 
     @property
+    def hybrid(self) -> bool:
+        return self.communication == 'hybrid'
+
+    @property
     def prodname(self) -> str:
         return self.producer.name
 
@@ -180,7 +184,7 @@ template_source = dedent(r"""
 
         {# dhmem data structures #}
         {% for port in task.ports %}
-        {% if port.dhmem %}
+        {% if port.dhmem or port.hybrid %}
         if (do_print) std::fprintf(stderr, "{{ task.name }}: dhmem {{ port.g('data') }}\n");
         auto &{{ port.g('data') }} = dhmem.container<dhmem_data>("{{ port.g('data') }}");
         {% endif %}
@@ -237,12 +241,26 @@ template_source = dedent(r"""
                 {% endif %}
                 {% endfor %}
 
+                {# hybrid receive data #}
                 {% for port in task.inports %}
-                int {{ port.g('sum') }} = 0;
-                for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
-                    {{ port.g('sum') }} += {{ port.g('data') }}.vec[j];
+                {% if port.hybrid %}
+                {
+                    dhmem::handle h;
+                    MPI_Recv(&h, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    {{ port.g('data') }} = dhmem.load<dhmem_data>(h);
                 }
-                if (do_print) std::fprintf(stderr, "{{ task.name }}: i = %d, first = %d, {{ port.g('sum') }} = %d\n", i, {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
+                {% endif %}
+                {% endfor %}
+
+                {% for port in task.inports %}
+                {
+                    int *data = {{ port.g('data') }}.vec.data();
+                    int {{ port.g('sum') }} = 0;
+                    for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
+                        {{ port.g('sum') }} += data[j];  // {{ port.g('data') }}.vec[j];
+                    }
+                    if (do_print) std::fprintf(stderr, "{{ task.name }}: i = %d, first = %d, {{ port.g('sum') }} = %d\n", i, {{ port.g('data') }}.vec[0], {{ port.g('sum') }});
+                }
                 {% endfor %}
 
                 {% for port in task.inports %}
@@ -270,12 +288,16 @@ template_source = dedent(r"""
                 {% endfor %}
 
                 {% for port in task.outports %}
-                for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
-                    {{ port.g('data') }}.vec[j]
-                        = 100 * 100 * 100 * ("{{ port.prodname }}"[0] - 'a' + 1)
-                        + 100 * 100 *       ("{{ port.consname }}"[0] - 'a' + 1)
-                        + 100 * i
-                        + j;
+                {
+                    int *data = {{ port.g('data') }}.vec.data();
+                    for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
+                        {# {{ port.g('data') }}.vec[j] #}
+                        data[j]
+                            = 100 * 100 * 100 * ("{{ port.prodname }}"[0] - 'a' + 1)
+                            + 100 * 100 *       ("{{ port.consname }}"[0] - 'a' + 1)
+                            + 100 * i
+                            + j;
+                    }
                 }
                 {% endfor %}
 
@@ -299,6 +321,16 @@ template_source = dedent(r"""
                     vecsize = {{ port.g('data') }}.vec.size();
                     MPI_Send(&vecsize, 1, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                     MPI_Send({{ port.g('data') }}.vec.data(), vecsize, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                }
+                {% endif %}
+                {% endfor %}
+
+                {# hybrid send data #}
+                {% for port in task.outports %}
+                {% if port.hybrid %}
+                {
+                    dhmem::handle h = dhmem.save({{ port.g('data') }});
+                    MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                 }
                 {% endif %}
                 {% endfor %}
@@ -331,7 +363,7 @@ template_source = dedent(r"""
     }
     {% endfor %}
 
-    {% if context.all_mpi %}
+    {# {% if context.all_mpi %} #}
     void workflow(std::string &name, int segment) {
         int rank;
 
@@ -355,9 +387,9 @@ template_source = dedent(r"""
             std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
         }
     }
-    {% endif %}
+    {# {% endif %} #}
 
-    {% if context.all_dhmem %}
+    {% if False %}
     void workflow(std::string &name, int segment) {
         //std::fprintf(stderr, "workflow: start\n");
 
@@ -494,7 +526,7 @@ def main(definitions):
     task_lookup = { v.name: v for v in tasks }
 
     for prodnames, consnames, options in port_definitions:
-        default_size = int(options.get('size', 10 * 1024))  # number of ints
+        default_size = parse_size(options.get('size', '10kb')) // 4  # number of ints
         communication = options.get('comm', 'dhmem')  # dhmem or mpi
 
         for prodname, consname in product(prodnames, consnames):
