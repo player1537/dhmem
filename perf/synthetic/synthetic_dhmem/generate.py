@@ -12,12 +12,11 @@ from typing import List
 from jinja2 import Environment, StrictUndefined
 
 
-@dataclass
+@dataclass(frozen=True)
 class Port:
     producer: 'Task'
     consumer: 'Task'
     communication: str
-    default_size: int  # size of int array
 
     @property
     def dhmem(self) -> bool:
@@ -45,12 +44,13 @@ class Port:
     g = genname
 
 
-@dataclass
+@dataclass(frozen=True)
 class Task:
     number: int
     name: str
-    ports: List[Port]
+    ports: List[Port] = field(compare=False)
     default_period: int  # microseconds
+    default_size: int  # size of int array
 
     @property
     def inports(self) -> List[Port]:
@@ -74,9 +74,9 @@ class Task:
     g = genname
 
 
-@dataclass
+@dataclass(frozen=True)
 class Context:
-    tasks: List[Task]
+    tasks: List[Task] = field(compare=False)
     default_maxiter: int
     default_name: str
     default_print: int
@@ -112,8 +112,8 @@ class Context:
     g = genname
 
 
-template_source = dedent(r"""
-    #include <array>
+template_source = dedent(
+r"""    #include <array>
     #include <cstdio>
     #include <memory>
     #include <vector>
@@ -165,12 +165,17 @@ template_source = dedent(r"""
                 : {{ context.default_maxiter }};
 
         {# task data size #}
+        {% with seen = set() %}
         {% for port in task.outports %}
-        size_t {{ port.g('size') }} = 
-            (s = getenv("{{ port.g('size')|upper }}"))
+        {% if port.producer not in seen %}
+        size_t {{ port.producer.g('size') }} = 
+            (s = getenv("{{ port.producer.g('size')|upper }}"))
                 ? (size_t)atol(s)
-                : {{ port.default_size }};
+                : {{ port.producer.default_size }};
+        {% do seen.add(port.producer) %}
+        {% endif %}
         {% endfor %}
+        {% endwith %}
 
         {# dhmem synchronization primitives #}
         {% for port in task.ports %}
@@ -183,12 +188,18 @@ template_source = dedent(r"""
         {% endfor %}
 
         {# dhmem data structures #}
+        {% with seen = set() %}
         {% for port in task.ports %}
         {% if port.dhmem or port.hybrid %}
+        {% if port.producer not in seen %}
+        auto &{{ port.producer.g('data') }} = dhmem.container<dhmem_data>("{{ port.producer.g('data') }}");
+        {% do seen.add(port.producer) %}
+        {% endif %}
         if (do_print) std::fprintf(stderr, "{{ task.name }}: dhmem {{ port.g('data') }}\n");
-        auto &{{ port.g('data') }} = dhmem.container<dhmem_data>("{{ port.g('data') }}");
+        auto &{{ port.g('data') }} = {{ port.producer.g('data') }};
         {% endif %}
         {% endfor %}
+        {% endwith %}
 
         {# mpi data structures #}
         {% for port in task.ports %}
@@ -215,7 +226,7 @@ template_source = dedent(r"""
             {% if task.outports %}
             if (i == 0) {
                 {% for port in task.outports %}
-                {{ port.g('data') }}.vec.resize({{ port.g('size') }});
+                {{ port.g('data') }}.vec.resize({{ port.producer.g('size') }});
                 {% endfor %}
             }
             {% endif %}
@@ -287,7 +298,9 @@ template_source = dedent(r"""
                 {% endif %}
                 {% endfor %}
 
+                {% with seen = set() %}
                 {% for port in task.outports %}
+                {% if port.producer not in seen %}
                 {
                     int *data = {{ port.g('data') }}.vec.data();
                     for (int j=0; j<{{ port.g('data') }}.vec.size(); ++j) {
@@ -299,7 +312,10 @@ template_source = dedent(r"""
                             + j;
                     }
                 }
+                {% do seen.add(port.producer) %}
+                {% endif %}
                 {% endfor %}
+                {% endwith %}
 
                 {# dhmem notify that data is ready #}
                 {% for port in task.outports %}
@@ -384,7 +400,7 @@ template_source = dedent(r"""
             {{ task.g('function') }}(dhmem);
         {% endfor %}
         } else {
-            std::fprintf(stderr, "Error: Wrong number of ranks..?\n");
+            std::fprintf(stderr, "Error: Wrong number of ranks..? rank=%d expmax=%d\n", rank, {{ tasks|length }});
         }
     }
     {# {% endif %} #}
@@ -473,8 +489,7 @@ template_source = dedent(r"""
         workflow(name, segment);
 
         return 0;
-    }
-""")
+    }""")
 
 
 # Thanks https://stackoverflow.com/a/60708339
@@ -511,6 +526,7 @@ def main(definitions):
     tasks = []
     for task_names, options in task_definitions:
         default_period = int(options.get('period', 1000 * 1000))  # microseconds
+        default_size = parse_size(options.get('size', '10kb')) // 4  # number of ints
 
         for task_name in task_names:
             assert task_name not in (x.name for x in tasks), f'Task {task_name} already seen'
@@ -520,13 +536,13 @@ def main(definitions):
                 name=task_name,
                 ports=[],
                 default_period=default_period,
+                default_size=default_size,
             )
             tasks.append(task)
 
     task_lookup = { v.name: v for v in tasks }
 
     for prodnames, consnames, options in port_definitions:
-        default_size = parse_size(options.get('size', '10kb')) // 4  # number of ints
         communication = options.get('comm', 'dhmem')  # dhmem or mpi
 
         for prodname, consname in product(prodnames, consnames):
@@ -536,7 +552,6 @@ def main(definitions):
             port = Port(
                 producer=producer,
                 consumer=consumer,
-                default_size=default_size,
                 communication=communication,
             )
 
@@ -559,7 +574,9 @@ def main(definitions):
 
     env = Environment(
         undefined=StrictUndefined,
+        extensions=['jinja2.ext.do'],
     )
+    env.globals['set'] = set
 
     template = env.from_string(template_source)
 
