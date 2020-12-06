@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(Dhmem)
+set(CMAKE_CXX_STANDARD 11)
 include(ExternalProject)
 
 option(build_examples "Build the example executables" OFF)
