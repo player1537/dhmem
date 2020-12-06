@@ -1,0 +1,12 @@
+diff -Naur a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2020-12-05 20:34:55.954301705 -0600
++++ b/CMakeLists.txt	2020-12-05 20:35:16.797884575 -0600
+@@ -168,7 +168,7 @@
+ 
+ 
+ # henson-chai + henson_lib
+-install                     (TARGETS henson-chai henson_lib henson-exec
++install                     (TARGETS henson-chai henson_lib henson-exec henson-hwl
+                                 RUNTIME DESTINATION bin
+                                 LIBRARY DESTINATION lib
+                                 ARCHIVE DESTINATION lib)

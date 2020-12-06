@@ -1,0 +1,22 @@
+var procmap = ProcMap()
+
+if(procmap.group() == "world")
+{
+    var sim = load("../simple/simulation 250", procmap)
+    var ana = load("../simple/analysis", procmap)
+
+    while(sim.proceed())
+    {
+        ana.proceed()
+    }
+
+    if (procmap.local_rank() == 0)
+    {
+        print("Total time in simulation: ${clock_to_string(sim.total_time())}");
+        print("Total time in analysis:   ${clock_to_string(ana.total_time())}");
+    }
+}
+else
+{
+    print("I don't belong to group world!!")
+}
