@@ -1,0 +1,8 @@
+eva = ../../stage/bin/libhenson_evaluate.so
+ste = ../../stage/bin/libhenson_steer.so
+vis = ../../stage/bin/libhenson_visualize.so
+
+world while eva:
+    eva
+    vis
+    ste
