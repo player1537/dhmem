@@ -21,6 +21,8 @@ go-env() {
 go-cmake() {
 	cmake -H"${root:?}" -B"${build:?}" \
 		-DCMAKE_INSTALL_PREFIX:PATH="${stage:?}" \
+		-DCMAKE_C_COMPILER=gcc \
+		-DCMAKE_CXX_COMPILER=g++ \
 		${examples:+-Dbuild_examples:BOOL=YES} \
 		${perf:+-Dbuild_perf:BOOL=YES} \
         "$@" \
