@@ -31,6 +31,22 @@ class Port:
         return self.communication == 'hybrid'
 
     @property
+    def copyinto(self) -> bool:
+        return self.communication == 'copy' or self.copyintoonly
+
+    @property
+    def copyfrom(self) -> bool:
+        return self.communication == 'copy' or self.copyfromonly
+
+    @property
+    def copyintoonly(self) -> bool:
+        return self.communication == 'copyinto'
+
+    @property
+    def copyfromonly(self) -> bool:
+        return self.communication == 'copyfrom'
+
+    @property
     def prodname(self) -> str:
         return self.producer.name
 
@@ -187,10 +203,24 @@ r"""    #include <array>
         {% endif %}
         {% endfor %}
 
+        {# copy data structures #}
+        {% with seen = set() %}
+        {% for port in task.ports %}
+        {% if (task == port.producer and port.copyinto) or (task == port.consumer and port.copyfrom) %}
+        {% if port.producer not in seen %}
+        auto &{{ port.producer.g('copy') }} = dhmem.container<dhmem_data>("{{ port.producer.g('copy') }}");
+        {% do seen.add(port.producer) %}
+        {% endif %}
+        if (do_print) std::fprintf(stderr, "{{ task.name }}: copy {{ port.g('copy') }}\n");
+        auto &{{ port.g('copy') }} = {{ port.producer.g('copy') }};
+        {% endif %}
+        {% endfor %}
+        {% endwith %}
+
         {# dhmem data structures #}
         {% with seen = set() %}
         {% for port in task.ports %}
-        {% if port.dhmem or port.hybrid %}
+        {% if port.dhmem or port.hybrid or (task == port.producer and not port.copyinto) or (task == port.consumer and not port.copyfrom) %}
         {% if port.producer not in seen %}
         auto &{{ port.producer.g('data') }} = dhmem.container<dhmem_data>("{{ port.producer.g('data') }}");
         {% do seen.add(port.producer) %}
@@ -203,7 +233,7 @@ r"""    #include <array>
 
         {# mpi data structures #}
         {% for port in task.ports %}
-        {% if port.mpi %}
+        {% if port.mpi or (task == port.producer and port.copyinto) or (task == port.consumer and port.copyfrom) %}
         if (do_print) std::fprintf(stderr, "{{ task.name }}: mpi {{ port.g('data') }}\n");
         auto {{ port.g('data') }} = mpi_data();
         {% endif %}
@@ -252,9 +282,35 @@ r"""    #include <array>
                 {% endif %}
                 {% endfor %}
 
+                {# copy receive data #}
+                {% with seen = set() %}
+                {% for port in task.inports %}
+                {% if port.copyfrom %}
+                {% if port.producer not in seen %}
+                {
+                    dhmem::handle h;
+                    MPI_Recv(&h, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    {{ port.g('copy') }} = dhmem.load<dhmem_data>(h);
+                    {{ port.g('data') }}.vec.resize({{ port.g('copy') }}.vec.size());
+                    std::copy({{ port.g('copy') }}.vec.data() + 0,
+                              {{ port.g('copy') }}.vec.data() + {{ port.g('copy') }}.vec.size(),
+                              {{ port.g('data') }}.vec.data());
+                }
+                {% do seen.add(port.producer) %}
+                {% else %}
+                {
+                    dhmem::handle h;
+                    MPI_Recv(&h, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    (void)h;
+                }
+                {% endif %}
+                {% endif %}
+                {% endfor %}
+                {% endwith %}
+
                 {# hybrid receive data #}
                 {% for port in task.inports %}
-                {% if port.hybrid %}
+                {% if port.hybrid or (port.copyinto and not port.copyfrom) %}
                 {
                     dhmem::handle h;
                     MPI_Recv(&h, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -341,9 +397,33 @@ r"""    #include <array>
                 {% endif %}
                 {% endfor %}
 
+                {# copy send data #}
+                {% with seen = set() %}
+                {% for port in task.outports %}
+                {% if port.copyinto %}
+                {% if port.producer not in seen %}
+                {
+                    {{ port.g('copy') }}.vec.resize({{ port.g('data') }}.vec.size());
+                    std::copy({{ port.g('data') }}.vec.data() + 0,
+                              {{ port.g('data') }}.vec.data() + {{ port.g('data') }}.vec.size(),
+                              {{ port.g('copy') }}.vec.data());
+                    dhmem::handle h = dhmem.save({{ port.g('copy') }});
+                    MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                }
+                {% do seen.add(port.producer) %}
+                {% else %}
+                {
+                    dhmem::handle h = dhmem.save({{ port.g('copy') }});
+                    MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                }
+                {% endif %}
+                {% endif %}
+                {% endfor %}
+                {% endwith %}
+
                 {# hybrid send data #}
                 {% for port in task.outports %}
-                {% if port.hybrid %}
+                {% if port.hybrid or (port.copyfrom and not port.copyinto) %}
                 {
                     dhmem::handle h = dhmem.save({{ port.g('data') }});
                     MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);

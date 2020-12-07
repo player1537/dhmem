@@ -27,7 +27,7 @@ def_wide() {
         maxiter=${maxiter},print=0,segment=${segment} \
         start,a,b,c,d,e,f,g,end/period=${period},size=${size} \
         start/a,b,c,d,e,f,g/comm=${comm} \
-        a,b,c,d,e,f,g/end/comm=${comm} \
+        a,b,c,d,e,f,g/end/comm=hybrid \
         > definitions.txt
 }
 
@@ -60,10 +60,9 @@ printf $'def,maxiter,comm,segment,size,period,real,user,sys\n'
 for segment in 1GB; do
 for size in 10MB; do
 for period in 0; do
-for comm in hybrid dhmem mpi; do
-for def in wide simple long; do
 for maxiter in 1024 2048; do
-for n in {1..4}; do
+for def in simple; do
+for comm in none; do
 
 def_${def}
 cmake &>/dev/null
@@ -71,7 +70,6 @@ make &>/dev/null
 printf $'%s,%s,%s,%s,%s,%s,' ${def} ${maxiter} ${comm} ${segment} ${size} ${period}
 timeit mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
 
-done
 done
 done
 done

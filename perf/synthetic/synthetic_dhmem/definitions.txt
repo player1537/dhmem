@@ -1,10 +1,4 @@
-maxiter=2048,print=0,segment=1GB
+maxiter=256,print=0,segment=1GB
 start,a,b,c,d,e,f,g,end/period=0,size=10MB
-start/a/comm=mpi
-a/b/comm=mpi
-b/c/comm=mpi
-c/d/comm=mpi
-d/e/comm=mpi
-e/f/comm=mpi
-f/g/comm=mpi
-g/end/comm=mpi
+start/a,b,c,d,e,f,g/comm=copyfrom
+a,b,c,d,e,f,g/end/comm=hybrid
