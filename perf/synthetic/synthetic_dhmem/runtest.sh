@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+PAIRS=( _ )
+for ((i=0; i<1000; ++i)); do
+    PAIRS+=( x$((i+1))/x$((i+2)) )
+done
+
+
 cmake() {
     go.sh cmake "$@"
 }
@@ -22,28 +28,26 @@ def_simple() {
 }
 
 def_wide() {
-    np=9
-    printf $'%s\n' \
+    if [ "$m" = 0 ]; then
+        def_simple
+        return
+    fi
+    np=$((2+m))
+    eval printf \$"'%s\n'" \
         maxiter=${maxiter},print=0,segment=${segment} \
-        start,a,b,c,d,e,f,g,end/period=${period},size=${size} \
-        start/a,b,c,d,e,f,g/comm=${comm} \
-        a,b,c,d,e,f,g/end/comm=hybrid \
+        start,end/period=${period},size=${size} \
+        x{1..$m}/period=${period},size=${size} \
+        start/x{1..$m}/comm=${comm} \
+        x{1..$m}/end/comm=${comm} \
         > definitions.txt
 }
 
 def_long() {
-    np=9
-    printf $'%s\n' \
+    np=$((2+m))
+    eval eval printf '%s\\\\n' \
         maxiter=${maxiter},print=0,segment=${segment} \
-        start,a,b,c,d,e,f,g,end/period=${period},size=${size} \
-        start/a/comm=${comm} \
-        a/b/comm=${comm} \
-        b/c/comm=${comm} \
-        c/d/comm=${comm} \
-        d/e/comm=${comm} \
-        e/f/comm=${comm} \
-        f/g/comm=${comm} \
-        g/end/comm=${comm} \
+        x{1..$np}/period=${period},size=${size} \
+        \\\${PAIRS[{1..$(($m+1))}]}/comm=${comm} \
         > definitions.txt
 }
 
@@ -56,20 +60,26 @@ comm_mpi() {
 }
 
 exec > >(tee -a results.txt)
-printf $'def,maxiter,comm,segment,size,period,real,user,sys\n'
-for segment in 1GB; do
-for size in 10MB; do
+printf $'def,maxiter,comm,segment,size,period,m,real,user,sys\n'
+for m in {8..32..4}; do
+for segment in 16GB; do
 for period in 0; do
-for maxiter in 1024 2048; do
-for def in simple; do
-for comm in none; do
+for size in 10MB; do
+for def in long wide; do
+for maxiter in 256 512; do
+for comm in hybrid mpi; do
+for n in {1..5}; do
+
+if [ "$def" = wide ] && [ "$m" -lt 26 ]; then continue; fi
 
 def_${def}
 cmake &>/dev/null
 make &>/dev/null
-printf $'%s,%s,%s,%s,%s,%s,' ${def} ${maxiter} ${comm} ${segment} ${size} ${period}
-timeit mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
+printf $'%s,%s,%s,%s,%s,%s,%s,' ${def} ${maxiter} ${comm} ${segment} ${size} ${period} ${m}
+timeit timeout 4m mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
 
+done
+done
 done
 done
 done

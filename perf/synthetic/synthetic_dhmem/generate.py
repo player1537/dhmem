@@ -166,6 +166,19 @@ r"""    #include <array>
                 ? atoi(s)
                 : {{ context.default_print }};
 
+        {# debugging stuff #}
+        {% if False %}
+        {
+            if (do_print) std::fprintf(stderr, "{{ task.name }}: pid=%d\n", getpid());
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            if (rank == 0) {
+                std::getchar();
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+        {% endif %}
+
         {# task period #}
         {% if task.outports %}
         useconds_t exp_time =
@@ -187,7 +200,7 @@ r"""    #include <array>
         size_t {{ port.producer.g('size') }} = 
             (s = getenv("{{ port.producer.g('size')|upper }}"))
                 ? (size_t)atol(s)
-                : {{ port.producer.default_size }};
+                : {{ port.producer.default_size }}UL;
         {% do seen.add(port.producer) %}
         {% endif %}
         {% endfor %}
@@ -208,7 +221,7 @@ r"""    #include <array>
         {% for port in task.ports %}
         {% if (task == port.producer and port.copyinto) or (task == port.consumer and port.copyfrom) %}
         {% if port.producer not in seen %}
-        auto &{{ port.producer.g('copy') }} = dhmem.container<dhmem_data>("{{ port.producer.g('copy') }}");
+        auto {{ port.producer.g('copy') }} = std::ref(dhmem.container<dhmem_data>("{{ port.producer.g('copy') }}"));
         {% do seen.add(port.producer) %}
         {% endif %}
         if (do_print) std::fprintf(stderr, "{{ task.name }}: copy {{ port.g('copy') }}\n");
@@ -220,7 +233,7 @@ r"""    #include <array>
         {# dhmem data structures #}
         {% with seen = set() %}
         {% for port in task.ports %}
-        {% if port.dhmem or port.hybrid or (task == port.producer and not port.copyinto) or (task == port.consumer and not port.copyfrom) %}
+        {% if port.dhmem or port.hybrid or (task == port.producer and port.copyfromonly) or (task == port.consumer and port.copyintoonly) %}
         {% if port.producer not in seen %}
         auto &{{ port.producer.g('data') }} = dhmem.container<dhmem_data>("{{ port.producer.g('data') }}");
         {% do seen.add(port.producer) %}
@@ -274,8 +287,8 @@ r"""    #include <array>
                 {% for port in task.inports %}
                 {% if port.mpi %}
                 {
-                    int vecsize;
-                    MPI_Recv(&vecsize, 1, MPI_INT, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    size_t vecsize;
+                    MPI_Recv(&vecsize, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     {{ port.g('data') }}.vec.resize(vecsize);
                     MPI_Recv({{ port.g('data') }}.vec.data(), vecsize, MPI_INT, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
@@ -290,10 +303,10 @@ r"""    #include <array>
                 {
                     dhmem::handle h;
                     MPI_Recv(&h, 1, MPI_LONG, {{ port.producer.number }}, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    {{ port.g('copy') }} = dhmem.load<dhmem_data>(h);
-                    {{ port.g('data') }}.vec.resize({{ port.g('copy') }}.vec.size());
-                    std::copy({{ port.g('copy') }}.vec.data() + 0,
-                              {{ port.g('copy') }}.vec.data() + {{ port.g('copy') }}.vec.size(),
+                    {{ port.g('copy') }} = std::ref(dhmem.load<dhmem_data>(h));
+                    {{ port.g('data') }}.vec.resize({{ port.g('copy') }}.get().vec.size());
+                    std::copy({{ port.g('copy') }}.get().vec.data() + 0,
+                              {{ port.g('copy') }}.get().vec.data() + {{ port.g('copy') }}.get().vec.size(),
                               {{ port.g('data') }}.vec.data());
                 }
                 {% do seen.add(port.producer) %}
@@ -389,9 +402,9 @@ r"""    #include <array>
                 {% for port in task.outports %}
                 {% if port.mpi %}
                 {
-                    int vecsize;
+                    size_t vecsize;
                     vecsize = {{ port.g('data') }}.vec.size();
-                    MPI_Send(&vecsize, 1, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
+                    MPI_Send(&vecsize, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                     MPI_Send({{ port.g('data') }}.vec.data(), vecsize, MPI_INT, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                 }
                 {% endif %}
@@ -403,17 +416,17 @@ r"""    #include <array>
                 {% if port.copyinto %}
                 {% if port.producer not in seen %}
                 {
-                    {{ port.g('copy') }}.vec.resize({{ port.g('data') }}.vec.size());
+                    {{ port.g('copy') }}.get().vec.resize({{ port.g('data') }}.vec.size());
                     std::copy({{ port.g('data') }}.vec.data() + 0,
                               {{ port.g('data') }}.vec.data() + {{ port.g('data') }}.vec.size(),
-                              {{ port.g('copy') }}.vec.data());
-                    dhmem::handle h = dhmem.save({{ port.g('copy') }});
+                              {{ port.g('copy') }}.get().vec.data());
+                    dhmem::handle h = dhmem.save({{ port.g('copy') }}.get());
                     MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                 }
                 {% do seen.add(port.producer) %}
                 {% else %}
                 {
-                    dhmem::handle h = dhmem.save({{ port.g('copy') }});
+                    dhmem::handle h = dhmem.save({{ port.g('copy') }}.get());
                     MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                 }
                 {% endif %}
@@ -425,6 +438,7 @@ r"""    #include <array>
                 {% for port in task.outports %}
                 {% if port.hybrid or (port.copyfrom and not port.copyinto) %}
                 {
+                    if (do_print) std::fprintf(stderr, "{{ task.name }}: send {{ port.g('data') }}\n");
                     dhmem::handle h = dhmem.save({{ port.g('data') }});
                     MPI_Send(&h, 1, MPI_LONG, {{ port.consumer.number }}, 1, MPI_COMM_WORLD);
                 }
@@ -460,7 +474,7 @@ r"""    #include <array>
     {% endfor %}
 
     {# {% if context.all_mpi %} #}
-    void workflow(std::string &name, int segment) {
+    void workflow(std::string &name, size_t segment) {
         int rank;
 
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -482,6 +496,8 @@ r"""    #include <array>
         } else {
             std::fprintf(stderr, "Error: Wrong number of ranks..? rank=%d expmax=%d\n", rank, {{ tasks|length }});
         }
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
     {# {% endif %} #}
 
@@ -549,7 +565,7 @@ r"""    #include <array>
     int main(int argc, char **argv) {
         char *s;
         std::string name;
-        int segment;
+        size_t segment;
 
         MPI_Init(&argc, &argv);
 
@@ -564,7 +580,7 @@ r"""    #include <array>
         segment =
             (s = getenv("{{ context.g('segment')|upper }}"))
                 ? atoi(s)
-                : {{ context.default_segment }};
+                : {{ context.default_segment }}UL;
 
         workflow(name, segment);
 
