@@ -25,3 +25,5 @@ install(EXPORT dhmem-export
     NAMESPACE dhmem::
     FILE dhmem-config.cmake
     DESTINATION lib/cmake/dhmem)
+install(DIRECTORY include/dhmem
+    DESTINATION include)
