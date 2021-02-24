@@ -5,13 +5,25 @@ for ((i=0; i<1000; ++i)); do
     PAIRS+=( x$((i+1))/x$((i+2)) )
 done
 
+go.sh() {
+    while ! [ -f "go.sh" ] && ! [ "$PWD" = "/" ]; do
+        cd ..
+    done
+    
+    if ! [ -f "go.sh" ]; then
+        printf $'Error: go.sh not found\n' >&2
+        exit 1
+    fi
+    
+    "$PWD/go.sh" "$@"
+}
 
 cmake() {
-    go.sh cmake "$@"
+    ../../../go.sh cmake "$@"
 }
 
 make() {
-    go.sh make "$@"
+    ../../../go.sh make "$@"
 }
 
 timeit() {
@@ -52,16 +64,16 @@ def_long() {
 }
 
 comm_dhmem() {
-    timeit go.sh exec stage/bin/perf_synthetic_dhmem
+    timeit ../../../go.sh exec ../../../stage/bin/perf_synthetic_dhmem
 }
 
 comm_mpi() {
-    timeit mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
+    timeit mpirun -np ${np} ../../../go.sh exec ../../../stage/bin/perf_synthetic_dhmem
 }
 
 exec > >(tee -a results.txt)
 printf $'def,maxiter,comm,segment,size,period,m,real,user,sys\n'
-for m in {8..32..4}; do
+for m in 7 {1..5..2} {8..32..4}; do
 for segment in 16GB; do
 for period in 0; do
 for size in 10MB; do
@@ -70,13 +82,11 @@ for maxiter in 256 512; do
 for comm in hybrid mpi; do
 for n in {1..5}; do
 
-if [ "$def" = wide ] && [ "$m" -lt 26 ]; then continue; fi
-
 def_${def}
 cmake &>/dev/null
 make &>/dev/null
 printf $'%s,%s,%s,%s,%s,%s,%s,' ${def} ${maxiter} ${comm} ${segment} ${size} ${period} ${m}
-timeit timeout 4m mpirun -np ${np} go.sh exec stage/bin/perf_synthetic_dhmem
+timeit timeout 4m mpirun -np ${np} ../../../go.sh exec ../../../stage/bin/perf_synthetic_dhmem
 
 done
 done

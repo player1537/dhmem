@@ -4436,3 +4436,164 @@ wide,512,mpi,16GB,10MB,0,32,59.39,1900.50,105.28
 wide,512,mpi,16GB,10MB,0,32,63.32,2012.28,102.46
 wide,512,mpi,16GB,10MB,0,32,59.47,1911.67,97.38
 wide,512,mpi,16GB,10MB,0,32,61.84,1991.06,98.42
+def,maxiter,comm,segment,size,period,m,real,user,sys
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffc4e80d1f8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.12,0.00,0.00
+def,maxiter,comm,segment,size,period,m,real,user,sys
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffcd1ae6fc8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.09,0.00,0.00
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffc32896538, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.08,0.00,0.00
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffd2ee34358, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffd430c40a8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7fffc051ba48, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.06,0.00,0.00
+simple,256,mpi,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffe524aab08, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+simple,256,mpi,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7fff584ecaf8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+simple,256,mpi,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffddf03bbb8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.08,0.00,0.00
+simple,256,mpi,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffe529ad3f8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+simple,256,mpi,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffc1dd582e8, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.08,0.00,0.00
+simple,512,hybrid,16GB,10MB,0,7,def,maxiter,comm,segment,size,period,m,real,user,sys
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/thobson2/src/dhmem/build
+make: Entering directory '/home/thobson2/src/dhmem/build'
+/opt/cmake-3.19.1-Linux-x86_64/bin/cmake -S/home/thobson2/src/dhmem -B/home/thobson2/src/dhmem/build --check-build-system CMakeFiles/Makefile.cmake 0
+/opt/cmake-3.19.1-Linux-x86_64/bin/cmake -E cmake_progress_start /home/thobson2/src/dhmem/build/CMakeFiles /home/thobson2/src/dhmem/build//CMakeFiles/progress.marks
+/usr/bin/make  -f CMakeFiles/Makefile2 all
+make[1]: Entering directory '/home/thobson2/src/dhmem/build'
+/usr/bin/make  -f dhmem/CMakeFiles/dhmem.dir/build.make dhmem/CMakeFiles/dhmem.dir/depend
+make[2]: Entering directory '/home/thobson2/src/dhmem/build'
+cd /home/thobson2/src/dhmem/build && /opt/cmake-3.19.1-Linux-x86_64/bin/cmake -E cmake_depends "Unix Makefiles" /home/thobson2/src/dhmem /home/thobson2/src/dhmem/dhmem /home/thobson2/src/dhmem/build /home/thobson2/src/dhmem/build/dhmem /home/thobson2/src/dhmem/build/dhmem/CMakeFiles/dhmem.dir/DependInfo.cmake --color=
+make[2]: Leaving directory '/home/thobson2/src/dhmem/build'
+/usr/bin/make  -f dhmem/CMakeFiles/dhmem.dir/build.make dhmem/CMakeFiles/dhmem.dir/build
+make[2]: Entering directory '/home/thobson2/src/dhmem/build'
+make[2]: Nothing to be done for 'dhmem/CMakeFiles/dhmem.dir/build'.
+make[2]: Leaving directory '/home/thobson2/src/dhmem/build'
+[ 28%] Built target dhmem
+/usr/bin/make  -f perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/build.make perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/depend
+/usr/bin/make  -f perf/synthetic/synthetic_dhmem/CMakeFiles/perf_synthetic_dhmem.dir/build.make perf/synthetic/synthetic_dhmem/CMakeFiles/perf_synthetic_dhmem.dir/depend
+make[2]: Entering directory '/home/thobson2/src/dhmem/build'
+cd /home/thobson2/src/dhmem/build && /opt/cmake-3.19.1-Linux-x86_64/bin/cmake -E cmake_depends "Unix Makefiles" /home/thobson2/src/dhmem /home/thobson2/src/dhmem/perf/throughput/throughput_dhmem /home/thobson2/src/dhmem/build /home/thobson2/src/dhmem/build/perf/throughput/throughput_dhmem /home/thobson2/src/dhmem/build/perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/DependInfo.cmake --color=
+make[2]: Entering directory '/home/thobson2/src/dhmem/build'
+make[2]: Leaving directory '/home/thobson2/src/dhmem/build'
+/usr/bin/make  -f perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/build.make perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/build
+[ 42%] Generating ../../../../perf/synthetic/synthetic_dhmem/src/synthetic_dhmem.cpp
+cd /home/thobson2/src/dhmem/perf/synthetic/synthetic_dhmem && bash -c "./venv/bin/python ./generate.py \$(cat definitions.txt) > ./src/synthetic_dhmem.cpp"
+make[2]: Entering directory '/home/thobson2/src/dhmem/build'
+make[2]: Nothing to be done for 'perf/throughput/throughput_dhmem/CMakeFiles/perf_throughput_dhmem.dir/build'.
+make[2]: Leaving directory '/home/thobson2/src/dhmem/build'
+perf/synthetic/synthetic_dhmem/CMakeFiles/perf_synthetic_dhmem.dir/build.make:81: recipe for target '../perf/synthetic/synthetic_dhmem/src/synthetic_dhmem.cpp' failed
+make[2]: Leaving directory '/home/thobson2/src/dhmem/build'
+CMakeFiles/Makefile2:262: recipe for target 'perf/synthetic/synthetic_dhmem/CMakeFiles/perf_synthetic_dhmem.dir/all' failed
+[ 71%] Built target perf_throughput_dhmem
+make[1]: Leaving directory '/home/thobson2/src/dhmem/build'
+Makefile:148: recipe for target 'all' failed
+make: Leaving directory '/home/thobson2/src/dhmem/build'
+simple,256,hybrid,16GB,10MB,0,7,Fatal error in PMPI_Recv: Invalid rank, error stack:
+PMPI_Recv(171): MPI_Recv(buf=0x7ffcca8bd268, count=1, MPI_LONG, src=2, tag=1, MPI_COMM_WORLD, status=0x1) failed
+PMPI_Recv(108): Invalid rank has value 2 but must be nonnegative and less than 2
+Command exited with non-zero status 6
+0.07,0.00,0.00
+-- Configuring done
+def,maxiter,comm,segment,size,period,m,real,user,sys
+simple,256,hybrid,16GB,10MB,0,7,2.42,4.68,0.09
+simple,256,hybrid,16GB,10MB,0,7,2.38,4.60,0.08
+simple,256,hybrid,16GB,10MB,0,7,2.50,4.83,0.11
+simple,256,hybrid,16GB,10MB,0,7,2.36,4.58,0.07
+simple,256,hybrid,16GB,10MB,0,7,2.37,4.56,0.10
+simple,256,mpi,16GB,10MB,0,7,3.54,6.91,0.12
+simple,256,mpi,16GB,10MB,0,7,3.69,7.24,0.08
+simple,256,mpi,16GB,10MB,0,7,3.62,7.10,0.08
+simple,256,mpi,16GB,10MB,0,7,3.66,7.16,0.10
+simple,256,mpi,16GB,10MB,0,7,3.53,6.87,0.11
+simple,512,hybrid,16GB,10MB,0,7,4.55,8.95,0.08
+simple,512,hybrid,16GB,10MB,0,7,4.47,8.79,0.08
+simple,512,hybrid,16GB,10MB,0,7,4.61,9.08,0.09
+simple,512,hybrid,16GB,10MB,0,7,4.60,9.05,0.09
+simple,512,hybrid,16GB,10MB,0,7,4.45,8.74,0.10
+simple,512,mpi,16GB,10MB,0,7,6.97,13.76,0.12
+simple,512,mpi,16GB,10MB,0,7,7.03,13.92,0.08
+simple,512,mpi,16GB,10MB,0,7,7.03,13.91,0.08
+simple,512,mpi,16GB,10MB,0,7,7.06,13.96,0.09
+simple,512,mpi,16GB,10MB,0,7,7.08,13.98,0.11
+long,256,hybrid,16GB,10MB,0,7,5.73,49.11,1.82
+long,256,hybrid,16GB,10MB,0,7,5.62,47.98,1.93
+long,256,hybrid,16GB,10MB,0,7,5.60,47.86,1.90
+long,256,hybrid,16GB,10MB,0,7,6.04,51.37,2.44
+long,256,hybrid,16GB,10MB,0,7,5.77,48.95,2.38
+long,256,mpi,16GB,10MB,0,7,8.42,73.33,1.85
+long,256,mpi,16GB,10MB,0,7,8.53,73.92,2.20
+long,256,mpi,16GB,10MB,0,7,8.35,72.19,2.27
+long,256,mpi,16GB,10MB,0,7,8.24,71.17,2.37
+long,256,mpi,16GB,10MB,0,7,8.45,73.46,2.02
+long,512,hybrid,16GB,10MB,0,7,10.87,95.21,1.99
+long,512,hybrid,16GB,10MB,0,7,10.76,93.93,2.20
+long,512,hybrid,16GB,10MB,0,7,10.90,95.44,2.02
+long,512,hybrid,16GB,10MB,0,7,10.85,94.68,2.33
+long,512,hybrid,16GB,10MB,0,7,10.64,92.78,2.24
+long,512,mpi,16GB,10MB,0,7,15.84,139.48,2.35
+long,512,mpi,16GB,10MB,0,7,16.28,143.73,2.05
+long,512,mpi,16GB,10MB,0,7,16.19,143.08,2.00
+long,512,mpi,16GB,10MB,0,7,16.05,141.45,2.50
+long,512,mpi,16GB,10MB,0,7,16.35,144.09,2.32
+wide,256,hybrid,16GB,10MB,0,7,17.36,151.88,3.46
+wide,256,hybrid,16GB,10MB,0,7,17.19,150.69,3.37
+wide,256,hybrid,16GB,10MB,0,7,17.22,150.76,3.46
+wide,256,hybrid,16GB,10MB,0,7,17.46,153.01,3.44
+wide,256,hybrid,16GB,10MB,0,7,17.86,156.61,3.54
+wide,256,mpi,16GB,10MB,0,7,24.29,213.55,4.30
+wide,256,mpi,16GB,10MB,0,7,24.17,212.87,3.96
+wide,256,mpi,16GB,10MB,0,7,23.92,210.20,4.36
+wide,256,mpi,16GB,10MB,0,7,23.75,208.73,4.35
+wide,256,mpi,16GB,10MB,0,7,24.66,217.08,4.16
+wide,512,hybrid,16GB,10MB,0,7,35.17,310.53,5.36
+wide,512,hybrid,16GB,10MB,0,7,34.96,308.47,5.44
+wide,512,hybrid,16GB,10MB,0,7,34.18,301.94,5.07
+wide,512,hybrid,16GB,10MB,0,7,34.14,301.60,4.92
+wide,512,hybrid,16GB,10MB,0,7,34.16,301.69,5.05
+wide,512,mpi,16GB,10MB,0,7,46.94,415.68,6.18
+wide,512,mpi,16GB,10MB,0,7,47.13,417.78,5.76
+wide,512,mpi,16GB,10MB,0,7,47.16,417.60,6.15
+wide,512,mpi,16GB,10MB,0,7,47.16,417.67,6.15
+wide,512,mpi,16GB,10MB,0,7,46.97,415.55,6.43

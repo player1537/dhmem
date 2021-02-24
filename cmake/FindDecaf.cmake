@@ -26,6 +26,7 @@ ExternalProject_Add(
         -DHENSON_LIBRARY:PATH=${Henson_INSTALL_DIR}/lib/libhenson.a
         -Dbuild_examples:BOOL=ON
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+	-DPYBIND11_PYTHON_VERSION:STRING=${PYBIND11_PYTHON_VERSION}
 )
 ExternalProject_Add_stepDependencies(${EP_DECAF}
     build

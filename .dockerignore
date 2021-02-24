@@ -1,0 +1,7 @@
+/spack
+/stage
+/build
+/.spack-env
+/.git
+/env.sh
+/perf/synthetic/synthetic_dhmem/venv

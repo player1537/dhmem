@@ -1,3 +1,6 @@
 /.spack-env
 /env.sh
 /tmp
+/build
+/stage
+/spack.lock
